@@ -1,0 +1,60 @@
+{
+    "version": 1,
+	"disable_existing_loggers": true,
+    
+    "formatters": 
+	{
+        "TimeStampFormatter": 
+		{
+            "format": "[%(asctime)s] %(message)s (%(levelname)s) [%(name)s]",
+			"datefmt":"%d.%m.%y %H:%M:%S"
+        },
+		
+        "ColoredFormatter": 
+		{
+            "class": "colorlog.ColoredFormatter",            
+            "format": "%(log_color)s[%(asctime)s] %(message)s",
+			"datefmt": "%H:%M:%S"
+        }		
+    },	
+	
+	"handlers": 
+	{	
+        "ConsoleHandler":
+		{
+            "class": "logging.StreamHandler",
+            "formatter": "ColoredFormatter",
+			"level": "INFO"
+        },		
+	
+        "FileHandler":
+		{
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "formatter": "TimeStampFormatter",
+            "filename": "log.txt",
+			"when": "D",
+			"interval": 1,
+			"backupCount": 5,
+			"level": "WARNING",
+			"encoding": "UTF-8"
+        }
+    },
+    
+	"loggers": 
+	{
+        "root":
+		{
+            "handlers": [ "FileHandler" ],
+            "level": "INFO"
+        },
+
+        "main":
+		{
+            "handlers": [ "ConsoleHandler" ],
+            "level": "INFO"
+        },
+
+        "pyrogram.session.session": { "level": "WARNING" },
+        "aiosqlite":  { "level": "WARNING" }
+    }
+}
