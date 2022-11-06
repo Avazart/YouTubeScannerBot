@@ -28,9 +28,9 @@ python -O main.py
 --api_id 214092721 
 --api_hash "1aa3321f398b7fad642a89d1fdac0f19"
 --workdir "user_data"
---name "notifier"
+--name "youtube_scanner"
 run
---update_interval = 1200
+--update_interval  1200
 --request_delay 1
 --send_delay 300
 --error_delay 65

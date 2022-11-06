@@ -72,7 +72,7 @@ async def run(profile: Profile, settings: Settings, logger: Logger):
                 async with SessionMaker.begin() as session:
                     await update_tg_info(client, session)
 
-            asyncio.create_task(send_worker(q, settings, client, logger))
+            asyncio.create_task(send_worker(q, profile, settings, client, logger))
             if not q.empty():
                 logger.info('Waiting ...')
                 await asyncio.sleep(settings.update_interval)
