@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from logging import getLogger, Logger
 from logging.config import dictConfig
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, Iterable
 
 import click
 import colorama
@@ -21,17 +21,15 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 import click_utils
-from auxiliary_utils import MessageGroup, load_queue, save_queue, make_message_groups
+from auxiliary_utils import MessageGroup, load_queue, save_queue, make_message_groups, get_tg_to_yt_videos
 from database_models import Base, TelegramObject, YouTubeChannel
 from database_utils import (
-    ForwardingData,
     get_forwarding_data,
     get_last_video_ids,
     telegram_object_by_user_name,
     add_forwarding,
     create_views
 )
-from youtube_utils import ScanData, get_channel_videos, get_channel_info
 from format_utils import fmt_scan_data, fmt_channel, fmt_groups
 from send_worker import send_worker
 from settings import (
@@ -39,11 +37,11 @@ from settings import (
     Settings,
     DB_STRING_FMT,
     DB_NAME,
-    LAST_VIDEO_COUNT,
     QUEUE_FILE_PATH,
     VIEWS_SCRIPT_PATH,
     LOG_CONFIG_FILE_PATH_FMT
 )
+from youtube_utils import ScanData, get_channel_videos, get_channel_info
 
 
 def init_logging(workdir: Path):
@@ -114,8 +112,8 @@ async def import_from_csv(profile: Profile, file_name: str):
 async def work_with_csv_row(row: Sequence[str], session: AsyncSession):
     if len(row) >= 2 and not row[0].startswith('#'):
         yt_channel_url = row[0].strip()
-        enabled = len(row) == 3 and row[2].strip().lower() in ('1', 'true', 'on')
-
+        enabled = len(row) >= 3 and row[2].strip().lower() in ('1', 'true', 'on')
+        message_id = int(row[3]) if len(row) >= 4 else None
         try:
             channel: YouTubeChannel = await get_channel_info(yt_channel_url)
         except httpx.HTTPError as e:
@@ -129,7 +127,7 @@ async def work_with_csv_row(row: Sequence[str], session: AsyncSession):
             tg = await telegram_object_by_user_name(tg_name, session)
 
         if tg:
-            await add_forwarding(channel, tg, enabled, session)
+            await add_forwarding(channel, tg, enabled, message_id, None, session)
         else:
             raise RuntimeError('Wrong telegram id or telegram username!')
 
@@ -143,15 +141,20 @@ async def update_tg_info(client: Client, session: AsyncSession):
                            user_name=dialog.chat.username,
                            title=dialog.chat.title,
                            first_name=dialog.chat.first_name,
-                           last_name=dialog.chat.last_name)
+                           last_name=dialog.chat.last_name,
+                           is_creator=dialog.chat.is_creator)
         )
-    tgs = filter(lambda tg_: tg_.type not in ('PRIVATE', 'BOT'), tgs)
+
+    def tg_filter(tg_: TelegramObject):
+        return tg_.type == 'SUPERGROUP' or (tg_.type == 'CHANNEL' and tg_.is_creator)
+
+    tgs = filter(tg_filter, tgs)
     for tg in tgs:
         await session.merge(tg)
     await session.commit()
 
 
-async def scan_youtube_channels(channels,
+async def scan_youtube_channels(channels: Iterable[YouTubeChannel],
                                 request_delay: float,
                                 logger: Logger) -> ScanData:
     result = {}
@@ -173,13 +176,13 @@ async def get_new_video_data(scan_data: ScanData,
     for channel, videos in scan_data.items():
         videos = list(filter(lambda v: v.creation_time >= last_time, videos))
         if videos:
-            last_video_ids = await get_last_video_ids(channel.id,
-                                                      LAST_VIDEO_COUNT,
-                                                      last_days,
-                                                      session)
-            videos = {video.id: video for video in videos}
-            new_videos_ids = set(videos.keys()) - set(last_video_ids)
-            new_videos = [videos[video_id] for video_id in new_videos_ids]
+            last_video_ids = frozenset(await get_last_video_ids(channel.id,
+                                                                last_days,
+                                                                session))
+            new_videos = []
+            for video in videos:
+                if video.id not in last_video_ids:
+                    new_videos.append(video)
             if new_videos:
                 new_data[channel] = new_videos
     return new_data
@@ -191,14 +194,16 @@ async def update(q: Queue[MessageGroup],
                  logger: Logger):
     logger.info('Updating ...')
 
-    forwarding: ForwardingData = await get_forwarding_data(session,
-                                                           not settings.without_sending)
-    youtube_channels = list(set(itertools.chain.from_iterable(forwarding.values())))
+    tg_to_yt_channels, tg_yt_to_forwarding = \
+        await get_forwarding_data(session, not settings.without_sending)
+
+    youtube_channels = list(set(itertools.chain.from_iterable(tg_to_yt_channels.values())))
     random.shuffle(youtube_channels)
-    youtube_channel_titles = {c.id: c.title for c in youtube_channels}
 
     logger.info('Scan youtube channels ...')
-    scan_data = await scan_youtube_channels(youtube_channels, settings.request_delay, logger)
+    scan_data = await scan_youtube_channels(youtube_channels,
+                                            settings.request_delay,
+                                            logger)
 
     logger.info('Search new videos ...')
     new_data = await get_new_video_data(scan_data, settings.last_days, session)
@@ -208,7 +213,8 @@ async def update(q: Queue[MessageGroup],
     if new_data:
         logger.info(fmt_scan_data(new_data))
         logger.info('Make message groups ...')
-        groups = make_message_groups(new_data, forwarding, youtube_channel_titles)
+        tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
+        groups = make_message_groups(tg_to_yt_videos, tg_yt_to_forwarding, youtube_channels)
         for group in groups:
             await q.put(group)
         if groups:

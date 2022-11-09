@@ -17,7 +17,9 @@ async def try_send_message(m: auxiliary_utils.Message,
                            logger: Logger):
     for i in range(settings.attempt_count):
         try:
-            await client.send_message(m.telegram_object.id, fmt_message(m, profile.name))
+            await client.send_message(m.telegram_object.id,
+                                      fmt_message(m, profile.name),
+                                      reply_to_message_id=m.reply_to_message_id)
             await asyncio.sleep(settings.message_delay)
             return
         except (FloodWait, SlowmodeWait) as e:
@@ -35,13 +37,12 @@ async def send_worker(q: Queue[auxiliary_utils.MessageGroup],
     while True:
         group: auxiliary_utils.MessageGroup = await q.get()
         failed: auxiliary_utils.MessageGroup = []
-        if settings.without_sending:
-            continue
         logger.info('Sending ...')
         for m in group:
-            logger.info(fmt_pair(m.youtube_video, m.telegram_object))
+            logger.info(fmt_pair(m.youtube_video, m.telegram_object) + f" msg_id={m.reply_to_message_id}")
             try:
-                await try_send_message(m, profile, settings, client, logger)
+                if not settings.without_sending:
+                    await try_send_message(m, profile, settings, client, logger)
             except OSError as e:  # NetworkError (internet access)
                 logger.error(f'Send error:\n'
                              f'{fmt_pair(m.youtube_video, m.telegram_object)}\n'

@@ -55,7 +55,7 @@ def fmt_groups(groups: MessageGroups, indent: str = '') -> str:
 
 
 def fmt_message(m: Message, from_name: str) -> str:
-    return (f'{from_name}]: **{m.youtube_channel_title}**\n'
+    return (f'[{from_name}]: **{m.youtube_channel_title}**\n'
             f'{m.youtube_video.title}\n'
             f'__{m.youtube_video.time_ago if m.youtube_video.time_ago else ""}__\n'
             f'{m.youtube_video.url}')
