@@ -2,9 +2,10 @@ import pickle
 from asyncio import Queue
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Optional, Iterable
 
-from database_models import TelegramObject, YouTubeVideo
+from database_models import TelegramObject, YouTubeVideo, YouTubeChannel
+from database_utils import TgToYouTubeChannels, TgYtToForwarding
 from youtube_utils import ScanData
 
 
@@ -13,10 +14,12 @@ class Message:
     telegram_object: TelegramObject
     youtube_video: YouTubeVideo
     youtube_channel_title: str
+    reply_to_message_id: Optional[int] = None
 
 
 MessageGroup = list[Message]
 MessageGroups = list[MessageGroup]
+TgToYouTubeVideos = dict[TelegramObject, list[YouTubeVideo]]
 
 
 def save_queue(file_path: Path, q: Queue[MessageGroup]):
@@ -43,16 +46,21 @@ def load_queue(file_path: Path, last_time) -> Queue[MessageGroup]:
     return q
 
 
-def make_message_groups(data: ScanData,
-                        tg_to_yt_channels: Mapping,
-                        channel_titles: dict[str,str]) -> MessageGroups:
-    tg_to_yt_videos: dict[TelegramObject, list[YouTubeVideo]] = {}
-    for tg, yt_channels in tg_to_yt_channels.items():
+def get_tg_to_yt_videos(scan_data: ScanData,
+                        tg_to_yt_channels: TgToYouTubeChannels) -> TgToYouTubeVideos:
+    tg_to_yt_videos = {}
+    for tg, channels in tg_to_yt_channels.items():
         videos = []
-        for channel in yt_channels:
-            videos.extend(data.get(channel, []))
+        for channel in channels:
+            videos.extend(scan_data.get(channel, []))
         tg_to_yt_videos[tg] = sorted(videos, key=lambda v: v.creation_time)
+    return tg_to_yt_videos
 
+
+def make_message_groups(tg_to_yt_videos: TgToYouTubeVideos,
+                        tg_yt_to_forwarding: TgYtToForwarding,
+                        youtube_channels: Iterable[YouTubeChannel]) -> MessageGroups:
+    youtube_channels = {c.id: c for c in youtube_channels}
     groups: MessageGroups = []
     values = tg_to_yt_videos.values()
     max_count = max((len(videos) for videos in values)) if values else 0
@@ -60,7 +68,10 @@ def make_message_groups(data: ScanData,
         group: MessageGroup = []
         for tg, videos in tg_to_yt_videos.items():
             if i < len(videos):
-                m = Message(tg, videos[i], channel_titles[videos[i].channel_id])
+                youtube_channel = youtube_channels[videos[i].channel_id]
+                forwarding = tg_yt_to_forwarding[tg, youtube_channel]
+                message_id = forwarding.reply_to_message_id
+                m = Message(tg, videos[i], youtube_channel.title, message_id)
                 group.append(m)
         groups.append(group)
     return groups

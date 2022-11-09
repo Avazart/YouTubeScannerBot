@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -10,33 +11,35 @@ from sqlalchemy.sql import Select
 
 from database_models import TelegramObject, Forwarding, YouTubeVideo, YouTubeChannel
 
-ForwardingData = dict[TelegramObject, list[YouTubeChannel]]
+TgToYouTubeChannels = dict[TelegramObject, list[YouTubeChannel]]
+TgYtToForwarding = dict[(TelegramObject, YouTubeChannel), Forwarding]
+ForwardingData = tuple[TgToYouTubeChannels, TgYtToForwarding]
 
 
 async def get_forwarding_data(session: AsyncSession, enabled_only=True) -> ForwardingData:
-    q: Select = select(TelegramObject, YouTubeChannel).select_from(Forwarding) \
+    q: Select = select(TelegramObject, YouTubeChannel, Forwarding).select_from(Forwarding) \
         .join_from(YouTubeChannel, TelegramObject,
                    (Forwarding.youtube_channel_id == YouTubeChannel.id) &
                    (Forwarding.telegram_id == TelegramObject.id) &
                    ((not enabled_only) or (Forwarding.enabled >= 1))) \
         .order_by(Forwarding.youtube_channel_id)
     result: ChunkedIteratorResult = await session.execute(q)  #
-    data = {}
+    tg_to_youtube_channels = {}
+    tg_yt_to_forwarding = {}
     for row in result.fetchall():
-        data.setdefault(row[0], []).append(row[1])
-    return data
+        tg_to_youtube_channels.setdefault(row[0], []).append(row[1])
+        tg_yt_to_forwarding[row[0], row[1]] = row[2]
+    return tg_to_youtube_channels, tg_yt_to_forwarding
 
 
 async def get_last_video_ids(channel_id: str,
-                             count: int,
                              last_days: int,
                              session: AsyncSession) -> list[str]:
     last_time = datetime.today() - timedelta(days=last_days)
     q = select(YouTubeVideo) \
         .where((YouTubeVideo.channel_id == channel_id) &
                (YouTubeVideo.creation_time >= last_time)) \
-        .order_by(YouTubeVideo.creation_time.desc()) \
-        .limit(count)
+        .order_by(YouTubeVideo.creation_time.desc())
     result = await session.execute(q)
     rows: list[Row] = result.fetchall()
     return [row[0].id for row in rows]
@@ -74,6 +77,8 @@ async def get_forwarding(yt_channel_id: str,
 async def add_forwarding(yt_channel: YouTubeChannel,
                          tg: TelegramObject,
                          enabled: bool,
+                         reply_to_message_id: Optional[int],
+                         pattern: Optional[re.Pattern],
                          session: AsyncSession) -> None:
     await session.merge(yt_channel)
     await session.merge(tg)
@@ -81,7 +86,9 @@ async def add_forwarding(yt_channel: YouTubeChannel,
     forwarding = Forwarding(n=existing_forwarding.n if existing_forwarding else None,
                             youtube_channel_id=yt_channel.id,
                             telegram_id=tg.id,
-                            enabled=enabled)
+                            enabled=enabled,
+                            reply_to_message_id=reply_to_message_id,
+                            pattern=pattern)
     await session.merge(forwarding)
 
 

@@ -3,7 +3,6 @@ from typing import Any
 from sqlalchemy import Column, Integer, DateTime, String, Boolean, ForeignKey
 from sqlalchemy.orm import declarative_base
 
-
 YOUTUBE_VIDEO_URL_FMT = 'https://www.youtube.com/watch?v={id}'
 YOUTUBE_CHANNEL_URL_FMT = 'https://www.youtube.com/channel/{id}/videos'
 
@@ -49,6 +48,7 @@ class TelegramObject(Base):
     title = Column(String, default=None)
     first_name = Column(String, default=None)
     last_name = Column(String, default=None)
+    is_creator = Column(Boolean, default=None)
 
     def __repr__(self):
         return to_repr(self)
@@ -67,8 +67,9 @@ class Forwarding(Base):
 
     youtube_channel_id = Column(ForeignKey("YouTubeChannels.id"), default=None)
     telegram_id = Column(ForeignKey("TelegramObjects.id"), default=None)
-
     enabled = Column(Boolean, default=True)
+    reply_to_message_id = Column(Integer, default=None)
+    pattern = Column(String, default=None)
 
     def __repr__(self):
         return to_repr(self)
@@ -97,5 +98,3 @@ class YouTubeVideo(Base):
 
     def __eq__(self, other):
         return self.id == other.id
-
-
