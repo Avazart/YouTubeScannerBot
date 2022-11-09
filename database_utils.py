@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TypeAlias, Optional
+from typing import Optional
 
 import sqlalchemy
 from sqlalchemy.engine import ChunkedIteratorResult, Row
@@ -10,7 +10,7 @@ from sqlalchemy.sql import Select
 
 from database_models import TelegramObject, Forwarding, YouTubeVideo, YouTubeChannel
 
-ForwardingData: TypeAlias = dict[TelegramObject, list[YouTubeChannel]]
+ForwardingData = dict[TelegramObject, list[YouTubeChannel]]
 
 
 async def get_forwarding_data(session: AsyncSession, enabled_only=True) -> ForwardingData:

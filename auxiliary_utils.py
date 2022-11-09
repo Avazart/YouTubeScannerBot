@@ -2,7 +2,7 @@ import pickle
 from asyncio import Queue
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeAlias, Mapping
+from typing import Mapping
 
 from database_models import TelegramObject, YouTubeVideo
 from youtube_utils import ScanData
@@ -15,8 +15,8 @@ class Message:
     youtube_channel_title: str
 
 
-MessageGroup: TypeAlias = list[Message]
-MessageGroups: TypeAlias = list[MessageGroup]
+MessageGroup = list[Message]
+MessageGroups = list[MessageGroup]
 
 
 def save_queue(file_path: Path, q: Queue[MessageGroup]):
@@ -45,7 +45,7 @@ def load_queue(file_path: Path, last_time) -> Queue[MessageGroup]:
 
 def make_message_groups(data: ScanData,
                         tg_to_yt_channels: Mapping,
-                        channel_titles: dict[str:str]) -> MessageGroups:
+                        channel_titles: dict[str,str]) -> MessageGroups:
     tg_to_yt_videos: dict[TelegramObject, list[YouTubeVideo]] = {}
     for tg, yt_channels in tg_to_yt_channels.items():
         videos = []

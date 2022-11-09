@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import TypeAlias
 
 import httpx
 from dateutil.relativedelta import relativedelta
@@ -7,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 from database_utils import YouTubeChannel, YouTubeVideo
 from youtube_parser import parse_channel_videos, parse_channel_info, parse_time_age
 
-ScanData: TypeAlias = dict[YouTubeChannel, list[YouTubeVideo]]
+ScanData = dict[YouTubeChannel, list[YouTubeVideo]]
 
 
 async def get_channel_videos(channel: YouTubeChannel) -> list[YouTubeVideo]:
