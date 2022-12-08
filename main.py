@@ -220,7 +220,8 @@ async def update(q: Queue[MessageGroup],
         if groups:
             logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
         logger.info('Save new videos to database ...')
-        session.add_all(new_videos)
+        for v in new_videos:
+            await session.merge(v)
 
 
 @click.group(invoke_without_command=True)

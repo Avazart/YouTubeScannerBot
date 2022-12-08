@@ -38,6 +38,7 @@ async def get_last_video_ids(channel_id: str,
     last_time = datetime.today() - timedelta(days=last_days)
     q = select(YouTubeVideo) \
         .where((YouTubeVideo.channel_id == channel_id) &
+               #               ((YouTubeVideo.creation_time >= last_time) | YouTubeVideo.time_ago.is_(None))) \
                (YouTubeVideo.creation_time >= last_time)) \
         .order_by(YouTubeVideo.creation_time.desc())
     result = await session.execute(q)
