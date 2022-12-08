@@ -35,24 +35,29 @@ def _iterate_map_or_seq(obj: Union[Sequence, Mapping]) -> tuple[Any, Any]:
     if isinstance(obj, Mapping):
         for key, value in obj.items():
             yield key, value
-    elif isinstance(obj, Sequence):
+    elif isinstance(obj, Sequence) and not isinstance(obj, str):
         for index, value in enumerate(obj):
             yield index, value
     else:
         raise SearchError('Type not supported!')
 
 
+def _is_composite_object(obj) -> bool:
+    return isinstance(obj, Mapping) or \
+           (isinstance(obj, Sequence) and not isinstance(obj, str))
+
+
 def find_first(root: Union[Sequence, Mapping], callback: Callback) -> Any:
     q = deque([([], root), ])
     while q:
         path, obj = q.popleft()
-        if isinstance(obj, (Sequence, Mapping)):
+        if _is_composite_object(obj):
             for ki, value in _iterate_map_or_seq(obj):
                 matched, result = callback(path, ki, value)
                 if matched:
                     return result
                 else:
-                    if isinstance(value, (Sequence, Mapping)):
+                    if _is_composite_object(value):
                         q.append((path + [ki, ], value))
     raise SearchError('Not found!')
 
@@ -62,13 +67,13 @@ def find_all(root: Union[Sequence, Mapping], callback: Callback) -> list:
     results = []
     while q:
         path, obj = q.popleft()
-        if isinstance(obj, (Sequence, Mapping)):
+        if _is_composite_object(obj):
             for ki, value in _iterate_map_or_seq(obj):
                 matched, result = callback(path, ki, value)
                 if matched:
                     results.append(result)
                 else:
-                    if isinstance(value, (Sequence, Mapping)):
+                    if _is_composite_object(value):
                         q.append((path + [ki, ], value))
     return results
 

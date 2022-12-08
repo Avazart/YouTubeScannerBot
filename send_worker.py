@@ -2,53 +2,55 @@ import asyncio
 from asyncio import Queue
 from logging import Logger
 
-from pyrogram import Client
-from pyrogram.errors import FloodWait, SlowmodeWait
+from aiogram import Bot
+from aiogram.exceptions import TelegramRetryAfter, TelegramNetworkError
 
-import auxiliary_utils
+import message_utils
 from format_utils import fmt_pair, fmt_message
-from settings import Settings, Profile
+from settings import Settings
 
 
-async def try_send_message(m: auxiliary_utils.Message,
-                           profile: Profile,
+async def try_send_message(m:  message_utils.ScannerMessage,
                            settings: Settings,
-                           client: Client,
+                           bot: Bot,
                            logger: Logger):
     for i in range(settings.attempt_count):
         try:
-            await client.send_message(m.telegram_object.id,
-                                      fmt_message(m, profile.name),
-                                      reply_to_message_id=m.reply_to_message_id)
+            await bot.send_message(chat_id=m.destination.chat.original_id,
+                                   text=fmt_message(m),
+                                   message_thread_id=m.destination.get_thread_original_id(),
+                                   parse_mode='HTML')
             await asyncio.sleep(settings.message_delay)
             return
-        except (FloodWait, SlowmodeWait) as e:
+        except TelegramRetryAfter as e:
             logger.warning(e)
             await asyncio.sleep(settings.error_delay)
     else:
         logger.error('Max limit of attempt count')
 
 
-async def send_worker(q: Queue[auxiliary_utils.MessageGroup],
-                      profile: Profile,
+async def send_worker(q: Queue[message_utils.MessageGroup],
                       settings: Settings,
-                      client: Client,
+                      bot: Bot,
                       logger: Logger):
     while True:
-        group: auxiliary_utils.MessageGroup = await q.get()
-        failed: auxiliary_utils.MessageGroup = []
+        group: message_utils.MessageGroup = await q.get()
+        failed: message_utils.MessageGroup = []
         logger.info('Sending ...')
         for m in group:
-            logger.info(fmt_pair(m.youtube_video, m.telegram_object) + f" msg_id={m.reply_to_message_id}")
+            logger.info(fmt_pair(m.youtube_video, m.destination))
             try:
                 if not settings.without_sending:
-                    await try_send_message(m, profile, settings, client, logger)
-            except OSError as e:  # NetworkError (internet access)
+                    await try_send_message(m, settings, bot, logger)
+            except TelegramNetworkError as e:
                 logger.error(f'Send error:\n'
-                             f'{fmt_pair(m.youtube_video, m.telegram_object)}\n'
-                             f'{e}')
+                             f'{fmt_pair(m.youtube_video, m.destination)}\n'
+                             f'{e} {type(e)}')
                 failed.append(m)
                 await asyncio.sleep(settings.error_delay)
+            except Exception as e:
+                # aiogram.exceptions.TelegramBadRequest: Bad Request: chat not found
+                logger.exception(e)
         if failed:
             await q.put(failed)
         q.task_done()

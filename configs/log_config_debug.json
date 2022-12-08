@@ -54,7 +54,12 @@
             "level": "DEBUG"
         },
 
-        "pyrogram.session.session": { "level": "WARNING" },
+        "aiogram":
+        {
+          "handlers": [ "ConsoleHandler" ],
+          "level": "WARNING"
+        },
+
         "aiosqlite":  { "level": "WARNING" }
     }
 }

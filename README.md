@@ -20,15 +20,14 @@ https://www.python.org/downloads/
 
 ##### Run bot
 
-``` python -O main.py  --api_id 214092721 --api_hash "1aa3321f398b7fad642a89d1fdac0f19" ```
+``` python -O main.py  --work_dir user_data --token "7881291637:AAGk1Zu_xlPwRcYDZXgg6qwFx5d0d0eViz" run ```
+
 
 ##### Run with all options
 ```
 python -O main.py  
---api_id 214092721 
---api_hash "1aa3321f398b7fad642a89d1fdac0f19"
+--token "7881291637:AAGk1Zu_xlPwRcYDZXgg6qwFx5d0d0eViz"
 --workdir "user_data"
---name "youtube_scanner"
 run
 --update_interval  1200
 --request_delay 1
@@ -38,10 +37,16 @@ run
 --attempt_count  3
 --last_days 3
 ```
-##### Import forwarding from csv file
-
-``` python main.py  --api_id 214092721 --api_hash "1aa3321f398b7fad642a89d1fdac0f19" import "data_example.csv" ```
 
 ##### Recreate database
 
-``` python main.py  --api_id 214092721 --api_hash "1aa3321f398b7fad642a89d1fdac0f19" recreate_db ```
+``` python main.py  --workdir "user_data" recreate_db ```
+
+##### Import data from json file
+
+``` python main.py  --workdir "user_data" import "backup.json" ```
+
+##### Export data from json file
+
+``` python main.py  --workdir "user_data" export "backup.json" ```
+

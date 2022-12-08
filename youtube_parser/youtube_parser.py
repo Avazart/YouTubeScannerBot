@@ -3,7 +3,7 @@ import re
 import bs4
 from dateutil.relativedelta import relativedelta
 
-import search
+from . import search
 
 DATA_PATTERN = re.compile(r'\s*var\s+ytInitialData\s*=\s*')
 MEASUREMENT_NAMES = frozenset(('second', 'minute', 'hour', 'day', 'week', 'month', 'year'))
@@ -71,7 +71,7 @@ def _parse_rich_grid_renderer(renderer: dict) -> list[dict]:
     return videos
 
 
-def _parse_object(obj_content) -> list[dict]:
+def _parse_object(obj_content: str) -> list[dict]:
     videos = []
     obj = json.loads(obj_content)
     content = search.find_first(obj, search.BySubPath('tabRenderer', 'content'))
@@ -84,14 +84,30 @@ def _parse_object(obj_content) -> list[dict]:
     return videos
 
 
-def parse_channel_videos(content: str) -> list[dict]:
+def parse_tab_urls(obj_content: str) -> list[str]:
+    urls = []
+    obj = json.loads(obj_content)
+    tabs = search.find_first(obj, search.ByKey("tabs"))
+    tab_renders = search.find_all(tabs, search.BySubPath('tabRenderer'))
+    for tab_render in tab_renders:
+        url = search.find_first(tab_render, search.BySubPath("endpoint",
+                                                             "commandMetadata",
+                                                             "webCommandMetadata",
+                                                             "url"))
+        urls.append(url)
+    return urls
+
+
+def parse_channel(content: str) -> dict:
     soup = bs4.BeautifulSoup(content, 'lxml')
     script_els = soup.find_all('script')
     script_with_data_els = list(filter(lambda el: DATA_PATTERN.search(el.text), script_els))
     if len(script_with_data_els) == 0:
         raise YoutubeParserError('"ytInitialData" not found!')
     obj_content = _parse_init_data(script_with_data_els[0].text)
-    return _parse_object(obj_content)
+    tab_urls: list[str] = parse_tab_urls(obj_content)
+    videos: list[dict] = _parse_object(obj_content)
+    return dict(tab_urls=tab_urls, videos=videos)
 
 
 def parse_channel_info(content: str) -> dict:
@@ -101,6 +117,7 @@ def parse_channel_info(content: str) -> dict:
     if len(script_with_data_els) == 0:
         raise YoutubeParserError('"ytInitialData" not found!')
     obj_content = _parse_init_data(script_with_data_els[0].text)
+
     obj = json.loads(obj_content)
     tabbed_header_renderer = \
         search.find_first(obj, search.BySubPath('c4TabbedHeaderRenderer',
@@ -114,7 +131,7 @@ def parse_channel_info(content: str) -> dict:
                                     'canonicalBaseUrl',
                                     default=None)
     return dict(title=title,
-                id=channel_id,
+                channel_id=channel_id,
                 canonical_base_url=canonical_base_url)
 
 

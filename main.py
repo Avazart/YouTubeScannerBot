@@ -1,47 +1,25 @@
 import asyncio
-import csv
-import itertools
 import json
 import random
 import sys
-from asyncio import Queue
-from dataclasses import asdict
-from datetime import datetime, timedelta
 from logging import getLogger, Logger
 from logging.config import dictConfig
 from pathlib import Path
-from typing import Sequence, Iterable
 
 import click
 import colorama
-import httpcore
-import httpx
-from pyrogram import Client
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 import click_utils
-from auxiliary_utils import MessageGroup, load_queue, save_queue, make_message_groups, get_tg_to_yt_videos
-from database_models import Base, TelegramObject, YouTubeChannel
-from database_utils import (
-    get_forwarding_data,
-    get_last_video_ids,
-    telegram_object_by_user_name,
-    add_forwarding,
-    create_views
-)
-from format_utils import fmt_scan_data, fmt_channel, fmt_groups
-from send_worker import send_worker
+from backup_utils import import_data, export_data, import_channels
+from database.recreate_db import recreate_db
+from run import run
 from settings import (
     Profile,
     Settings,
-    DB_STRING_FMT,
-    DB_NAME,
-    QUEUE_FILE_PATH,
-    VIEWS_SCRIPT_PATH,
-    LOG_CONFIG_FILE_PATH_FMT
+    LOG_CONFIG_FILE_PATH_FMT, DB_STRING_FMT, DB_NAME
 )
-from youtube_utils import ScanData, get_channel_videos, get_channel_info
 
 
 def init_logging(workdir: Path):
@@ -55,182 +33,13 @@ def init_logging(workdir: Path):
         dictConfig(config)
 
 
-async def run(profile: Profile, settings: Settings, logger: Logger):
-    last_time = datetime.today() - timedelta(days=settings.last_days)
-    q: Queue[MessageGroup] = load_queue(profile.workdir / QUEUE_FILE_PATH, last_time)
-    try:
-        engine = create_async_engine(DB_STRING_FMT.format(profile.workdir / DB_NAME), echo=False)
-        SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-        async with Client(**asdict(profile)) as client:
-            if not (profile.workdir / DB_NAME).exists():
-                async with engine.begin() as connection:
-                    await connection.run_sync(Base.metadata.create_all)
-                    await create_views(VIEWS_SCRIPT_PATH, connection)
-
-                async with SessionMaker.begin() as session:
-                    await update_tg_info(client, session)
-
-            asyncio.create_task(send_worker(q, profile, settings, client, logger))
-            if not q.empty():
-                logger.info('Waiting ...')
-                await asyncio.sleep(settings.update_interval)
-
-            while True:
-                async with SessionMaker.begin() as session:
-                    await update(q, session, settings, logger)
-                logger.info('Waiting ...')
-                await asyncio.sleep(settings.update_interval)
-    finally:
-        if not q.empty():
-            logger.info('Save queue ...')
-            save_queue(profile.workdir / QUEUE_FILE_PATH, q)
-
-
-async def recreate_db(profile: Profile):
-    engine = create_async_engine(DB_STRING_FMT.format(profile.workdir / DB_NAME), echo=False)
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.drop_all)
-        await connection.run_sync(Base.metadata.create_all)
-        await create_views(VIEWS_SCRIPT_PATH, connection)
-
-    async with Client(**asdict(profile)) as client:
-        SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-        async with SessionMaker.begin() as session:
-            await update_tg_info(client, session)
-
-
-async def import_from_csv(profile: Profile, file_name: str):
-    engine = create_async_engine(DB_STRING_FMT.format(profile.workdir / DB_NAME), echo=False)
-    SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    async with SessionMaker.begin() as session:
-        with open(file_name, 'r', encoding='utf-8', newline='') as file:
-            reader = csv.reader(file, delimiter=';', quotechar='"', dialect='excel')
-            for row in reader:
-                await work_with_csv_row(row, session)
-
-
-async def work_with_csv_row(row: Sequence[str], session: AsyncSession):
-    if len(row) >= 2 and not row[0].startswith('#'):
-        yt_channel_url = row[0].strip()
-        enabled = len(row) >= 3 and row[2].strip().lower() in ('1', 'true', 'on')
-        message_id = int(row[3]) if len(row) >= 4 else None
-        try:
-            channel: YouTubeChannel = await get_channel_info(yt_channel_url)
-        except httpx.HTTPError as e:
-            raise RuntimeError(str(e))
-
-        try:
-            tg_id = int(row[1])
-            tg = TelegramObject(id=tg_id)
-        except ValueError:
-            tg_name = row[1].strip()
-            tg = await telegram_object_by_user_name(tg_name, session)
-
-        if tg:
-            await add_forwarding(channel, tg, enabled, message_id, None, session)
-        else:
-            raise RuntimeError('Wrong telegram id or telegram username!')
-
-
-async def update_tg_info(client: Client, session: AsyncSession):
-    tgs = []
-    async for dialog in client.get_dialogs():
-        tgs.append(
-            TelegramObject(id=dialog.chat.id,
-                           type=dialog.chat.type.name,
-                           user_name=dialog.chat.username,
-                           title=dialog.chat.title,
-                           first_name=dialog.chat.first_name,
-                           last_name=dialog.chat.last_name,
-                           is_creator=dialog.chat.is_creator)
-        )
-
-    def tg_filter(tg_: TelegramObject):
-        return tg_.type == 'SUPERGROUP' or (tg_.type == 'CHANNEL' and tg_.is_creator)
-
-    tgs = filter(tg_filter, tgs)
-    for tg in tgs:
-        await session.merge(tg)
-    await session.commit()
-
-
-async def scan_youtube_channels(channels: Iterable[YouTubeChannel],
-                                request_delay: float,
-                                logger: Logger) -> ScanData:
-    result = {}
-    for channel in channels:
-        logger.debug(fmt_channel(channel))
-        try:
-            result[channel] = await get_channel_videos(channel)
-        except (httpcore.NetworkError, httpcore.TimeoutException) as e:
-            logger.error(f'Scan error {channel.videos_url}\n{type(e)}')
-        await asyncio.sleep(request_delay)
-    return result
-
-
-async def get_new_video_data(scan_data: ScanData,
-                             last_days: int,
-                             session: AsyncSession) -> ScanData:
-    new_data: ScanData = {}
-    last_time = datetime.today() - timedelta(days=last_days)
-    for channel, videos in scan_data.items():
-        videos = list(filter(lambda v: v.creation_time >= last_time, videos))
-        if videos:
-            last_video_ids = frozenset(await get_last_video_ids(channel.id,
-                                                                last_days,
-                                                                session))
-            new_videos = []
-            for video in videos:
-                if video.id not in last_video_ids:
-                    new_videos.append(video)
-            if new_videos:
-                new_data[channel] = new_videos
-    return new_data
-
-
-async def update(q: Queue[MessageGroup],
-                 session: AsyncSession,
-                 settings: Settings,
-                 logger: Logger):
-    logger.info('Updating ...')
-
-    tg_to_yt_channels, tg_yt_to_forwarding = \
-        await get_forwarding_data(session, not settings.without_sending)
-
-    youtube_channels = list(set(itertools.chain.from_iterable(tg_to_yt_channels.values())))
-    random.shuffle(youtube_channels)
-
-    logger.info('Scan youtube channels ...')
-    scan_data = await scan_youtube_channels(youtube_channels,
-                                            settings.request_delay,
-                                            logger)
-
-    logger.info('Search new videos ...')
-    new_data = await get_new_video_data(scan_data, settings.last_days, session)
-    new_videos = set(itertools.chain.from_iterable(new_data.values()))
-
-    logger.info(f'New videos: {len(new_videos)}')
-    if new_data:
-        logger.info(fmt_scan_data(new_data))
-        logger.info('Make message groups ...')
-        tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
-        groups = make_message_groups(tg_to_yt_videos, tg_yt_to_forwarding, youtube_channels)
-        for group in groups:
-            await q.put(group)
-        if groups:
-            logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
-        logger.info('Save new videos to database ...')
-        for v in new_videos:
-            await session.merge(v)
-
-
 @click.group(invoke_without_command=True)
 @click_utils.option_class(Profile)
 @click.pass_context
 def command_group(context, profile: Profile):
-    if not profile.workdir.exists():
-        profile.workdir.mkdir()
-    init_logging(profile.workdir)
+    if not profile.work_dir.exists():
+        profile.work_dir.mkdir()
+    init_logging(profile.work_dir)
     context.obj['logger'] = getLogger('main')
     context.obj['profile'] = profile
     if context.invoked_subcommand is None:
@@ -256,12 +65,36 @@ def command_recreate_db(context):
 
 
 @command_group.command(name='import')
-@click.argument('file_name', required=True)
+@click.argument('file_path', type=click.Path(exists=True), required=True)
 @click.pass_context
 @click_utils.log_work_process('main')
-def command_import(context, file_name: str):
+def command_import(context, file_path: str):
     profile: Profile = context.obj['profile']
-    asyncio.run(import_from_csv(profile, file_name))
+    engine = create_async_engine(DB_STRING_FMT.format(profile.work_dir / DB_NAME), echo=False)
+    SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    asyncio.run(import_data(Path(file_path), SessionMaker))
+
+
+@command_group.command(name='import_channels')
+@click.argument('file_path', type=click.Path(exists=True), required=True)
+@click.pass_context
+@click_utils.log_work_process('main')
+def command_import_channels(context, file_path: str):
+    profile: Profile = context.obj['profile']
+    engine = create_async_engine(DB_STRING_FMT.format(profile.work_dir / DB_NAME), echo=False)
+    SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    asyncio.run(import_channels(Path(file_path), SessionMaker))
+
+
+@command_group.command(name='export')
+@click.argument('file_path', type=click.Path(exists=False), required=True)
+@click.pass_context
+@click_utils.log_work_process('main')
+def command_export(context, file_path: str):
+    profile: Profile = context.obj['profile']
+    engine = create_async_engine(DB_STRING_FMT.format(profile.work_dir / DB_NAME), echo=False)
+    SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    asyncio.run(export_data(Path(file_path), SessionMaker))
 
 
 def startup():

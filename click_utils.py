@@ -95,14 +95,12 @@ def log_work_process(logger_name: str):
 if __name__ == '__main__':
     from dataclasses import dataclass
 
-
     @dataclass
     class _TestSettings:
         int_var: int
         str_var: str
         int_var2: Field = Field('-iv2', '--int_var2', type=int, default=1)
         int_var3: int = 555
-
 
     @click.command()
     @option_class(_TestSettings)
