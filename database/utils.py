@@ -277,28 +277,3 @@ async def create_views(file_path: Path, connection):
     text = file_path.read_text('utf-8')
     for statement in text.split(';'):
         await connection.execute(sqlalchemy.text(statement))
-
-
-async def test():
-    from sqlalchemy.ext.asyncio import create_async_engine
-    from sqlalchemy.orm import sessionmaker
-
-    from settings import DB_STRING_FMT
-    from settings import DB_NAME
-
-    work_dir = Path('../../user_data_debug')
-    chat_id = -1001716179047
-    thread_id = 1900
-
-    engine = create_async_engine(DB_STRING_FMT.format(work_dir / DB_NAME), echo=True)
-    SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    async with SessionMaker.begin() as session:
-        rows = await get_yt_channels(chat_id, thread_id, {81, }, None, None, session)
-        for row in rows:
-            print(row)
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(test())

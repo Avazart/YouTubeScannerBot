@@ -1,6 +1,5 @@
 lxml
 beautifulsoup4~=4.11.1
-click~=8.0.3
 colorama~=0.4.4
 colorlog
 httpx~=0.13.3
@@ -9,3 +8,4 @@ SQLAlchemy~=1.4.26
 aiosqlite
 httpcore~=0.9.1
 aiogram~=3.0.0b6
+click~=8.0.3

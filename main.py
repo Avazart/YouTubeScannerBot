@@ -2,7 +2,7 @@ import asyncio
 import json
 import random
 import sys
-from logging import getLogger, Logger
+from logging import getLogger
 from logging.config import dictConfig
 from pathlib import Path
 
@@ -12,20 +12,20 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 import click_utils
-from backup_utils import import_data, export_data, import_channels
+from backup_utils import export_data, import_channels, import_data
 from database.recreate_db import recreate_db
+from env_utils import dataclass_from_env
 from run import run
 from settings import (
-    Profile,
     Settings,
-    LOG_CONFIG_FILE_PATH_FMT, DB_STRING_FMT, DB_NAME
+    LOG_CONFIG_FILE_PATH_FMT
 )
 
 
-def init_logging(workdir: Path):
+def init_logging(workdir: Path, debug=False):
     logs_path = workdir / 'logs'
     logs_path.mkdir(parents=True, exist_ok=True)
-    log_config_path = LOG_CONFIG_FILE_PATH_FMT.format('_debug' if __debug__ else '')
+    log_config_path = LOG_CONFIG_FILE_PATH_FMT.format('_debug' if debug else '')
     with open(log_config_path) as file:
         config = json.load(file)
         file_handler = config['handlers']['FileHandler']
@@ -34,34 +34,33 @@ def init_logging(workdir: Path):
 
 
 @click.group(invoke_without_command=True)
-@click_utils.option_class(Profile)
 @click.pass_context
-def command_group(context, profile: Profile):
-    if not profile.work_dir.exists():
-        profile.work_dir.mkdir()
-    init_logging(profile.work_dir)
+def command_group(context):
+    settings = dataclass_from_env(Settings)
+    if not settings.work_dir.exists():
+        settings.work_dir.mkdir()
+    init_logging(settings.work_dir, settings.debug)
     context.obj['logger'] = getLogger('main')
-    context.obj['profile'] = profile
+    context.obj['settings'] = settings
     if context.invoked_subcommand is None:
         context.invoke(command_run)
 
 
 @command_group.command(name='run')
-@click_utils.option_class(Settings)
 @click.pass_context
 @click_utils.log_work_process('main')
-def command_run(context, settings: Settings):
-    profile: Profile = context.obj['profile']
-    logger: Logger = context.obj['logger']
-    asyncio.run(run(profile, settings, logger))
+def command_run(context):
+    logger = context.obj['logger']
+    settings = context.obj['settings']
+    asyncio.run(run(settings, logger))
 
 
 @command_group.command(name='recreate_db')
 @click.pass_context
 @click_utils.log_work_process('main')
 def command_recreate_db(context):
-    profile: Profile = context.obj['profile']
-    asyncio.run(recreate_db(profile))
+    settings = context.obj['settings']
+    asyncio.run(recreate_db(settings))
 
 
 @command_group.command(name='import')
@@ -69,8 +68,8 @@ def command_recreate_db(context):
 @click.pass_context
 @click_utils.log_work_process('main')
 def command_import(context, file_path: str):
-    profile: Profile = context.obj['profile']
-    engine = create_async_engine(DB_STRING_FMT.format(profile.work_dir / DB_NAME), echo=False)
+    settings = context.obj['settings']
+    engine = create_async_engine(settings.database_url, echo=False)
     SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     asyncio.run(import_data(Path(file_path), SessionMaker))
 
@@ -80,8 +79,8 @@ def command_import(context, file_path: str):
 @click.pass_context
 @click_utils.log_work_process('main')
 def command_import_channels(context, file_path: str):
-    profile: Profile = context.obj['profile']
-    engine = create_async_engine(DB_STRING_FMT.format(profile.work_dir / DB_NAME), echo=False)
+    settings = context.obj['settings']
+    engine = create_async_engine(settings.database_url, echo=False)
     SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     asyncio.run(import_channels(Path(file_path), SessionMaker))
 
@@ -91,8 +90,8 @@ def command_import_channels(context, file_path: str):
 @click.pass_context
 @click_utils.log_work_process('main')
 def command_export(context, file_path: str):
-    profile: Profile = context.obj['profile']
-    engine = create_async_engine(DB_STRING_FMT.format(profile.work_dir / DB_NAME), echo=False)
+    settings = context.obj['settings']
+    engine = create_async_engine(settings.database_url, echo=False)
     SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     asyncio.run(export_data(Path(file_path), SessionMaker))
 

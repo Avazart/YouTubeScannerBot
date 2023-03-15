@@ -3,14 +3,10 @@ import json
 from pathlib import Path
 
 from sqlalchemy.engine import Row
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.future import select
-from sqlalchemy.orm import sessionmaker, InstrumentedAttribute
+from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql import Select
 
-from database.utils import get_tags
-from settings import DB_NAME, DB_STRING_FMT
-from youtube_utils import get_channel_info
 from database.models import (
     YouTubeChannel,
     Forwarding,
@@ -19,6 +15,8 @@ from database.models import (
     TelegramChat,
     TelegramThread
 )
+from database.utils import get_tags
+from youtube_utils import get_channel_info
 
 MODELS = (YouTubeChannel, TelegramChat, TelegramThread, Forwarding, Tag, YouTubeChannelTag)
 TABLES = {model.__tablename__: model for model in MODELS}
@@ -93,16 +91,15 @@ async def import_channels(file_path: Path, SessionMaker):
 
 
 def test():
-    import asyncio
-
     work_dir = Path('../user_data')
     file_path = work_dir / 'backup.json'
 
-    engine = create_async_engine(DB_STRING_FMT.format(work_dir / DB_NAME), echo=False)
-    SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-
-    asyncio.run(export_data(file_path, SessionMaker))
-    asyncio.run(import_data(file_path, SessionMaker))
+    # engine = create_async_engine(DB_STRING_FMT.format(work_dir / DB_NAME), echo=False)
+    # SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    #
+    # asyncio.run(export_data(file_path, SessionMaker))
+    # asyncio.run(import_data(file_path, SessionMaker))
+    #
 
 
 if __name__ == '__main__':

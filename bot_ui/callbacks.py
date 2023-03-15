@@ -40,7 +40,7 @@ async def show_main_keyboard(key: StorageKey,
                              message: Message,
                              bot: Bot,
                              context: BotContext):
-    is_owner = key.user_id == context.profile.owner_id
+    is_owner = key.user_id in context.settings.bot_admin_ids
     keyboard = build_main_keyboard(is_owner)
     m = await message.answer("Main menu:", reply_markup=keyboard)
     if data := await context.storage.get_data(key):
@@ -95,7 +95,7 @@ async def show_channels_keyboard(query: CallbackQuery, context: BotContext):
         async with context.SessionMaker.begin() as session:
             keyboard = await build_channel_keyboard(data.original_chat_id,
                                                     data.original_thread_id,
-                                                    key.user_id == context.profile.owner_id,
+                                                    key.user_id in context.settings.bot_admin_ids,
                                                     data.yt_channels_offset,
                                                     MAX_YT_CHANNEL_COUNT,
                                                     data.tags_ids,
@@ -146,7 +146,7 @@ async def channel_checked(query: CallbackQuery,
         async with context.SessionMaker.begin() as session:
             keyboard = await build_channel_keyboard(tg.chat.original_id,
                                                     tg.get_thread_original_id(),
-                                                    key.user_id == context.profile.owner_id,
+                                                    key.user_id in context.settings.bot_admin_ids,
                                                     data.yt_channels_offset,
                                                     MAX_YT_CHANNEL_COUNT,
                                                     data.tags_ids,
@@ -262,7 +262,7 @@ async def nav_button_pressed(query: CallbackQuery,
                     data.yt_channels_offset = callback_data.offset
                     keyboard = await build_channel_keyboard(data.original_chat_id,
                                                             data.original_thread_id,
-                                                            key.user_id == context.profile.owner_id,
+                                                            key.user_id in context.settings.bot_admin_ids,
                                                             data.yt_channels_offset,
                                                             MAX_YT_CHANNEL_COUNT,
                                                             data.tags_ids,

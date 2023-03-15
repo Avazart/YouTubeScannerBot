@@ -49,9 +49,9 @@ async def menu_command(message: Message, bot: Bot, context: BotContext):
     await show_main_keyboard(StorageKey.from_message(message), message, bot, context)
 
 
-async def is_allowed_for_add_channel(bot: Bot, message: Message, owner_id: int) -> bool:
+async def is_allowed_for_add_channel(bot: Bot, message: Message, bot_admin_ids) -> bool:
     if message.chat.type.lower() == 'private':
-        return (message.from_user.id == owner_id) or \
+        return (message.from_user.id in bot_admin_ids) or \
                (await bot.get_chat_members_count(message.chat.id) >= MIN_MEMBER_COUNT)
     return True
 
@@ -60,7 +60,7 @@ async def add_channel_command(message: Message,
                               command: CommandObject,
                               bot: Bot,
                               context: BotContext):
-    if await is_allowed_for_add_channel(bot, message, context.profile.owner_id):
+    if await is_allowed_for_add_channel(bot, message, context.settings.bot_admin_ids):
         try:
             if args := command.args and split_string(command.args, sep=' ', max_split=1):
                 channel: YouTubeChannel = await get_channel_info(args[0])

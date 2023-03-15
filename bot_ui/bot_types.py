@@ -13,7 +13,7 @@ from aiogram.fsm.storage.base import StateType
 from sqlalchemy.orm import sessionmaker
 
 from auxiliary_utils import get_thread_id
-from settings import Profile
+from settings import Settings
 
 
 @dataclass
@@ -83,7 +83,7 @@ class Storage:
 class BotContext(NamedTuple):
     logger: logging.Logger
     SessionMaker: sessionmaker
-    profile: Profile
+    settings: Settings
     storage: Storage
 
 
