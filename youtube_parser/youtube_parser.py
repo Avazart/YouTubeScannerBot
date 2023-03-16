@@ -1,5 +1,6 @@
 import json
 import re
+
 import bs4
 from dateutil.relativedelta import relativedelta
 
