@@ -7,7 +7,7 @@ from logging import Logger
 from pathlib import Path
 from typing import Sequence
 
-import httpcore
+import aiohttp
 from aiogram import Dispatcher, Bot
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -150,7 +150,7 @@ async def scan_youtube_channels(channels: Sequence[YouTubeChannel],
         logger.debug(f"{i}/{len(channels)} " + fmt_channel(channel))
         try:
             result[channel] = await get_channel_data(channel)
-        except (httpcore.NetworkError, httpcore.TimeoutException) as e:
+        except (aiohttp.ClientConnectorError, asyncio.TimeoutError) as e:
             logger.error(f'Scan error {channel.url}\n{type(e)}')
         except Exception as e:
             logger.exception(e)
