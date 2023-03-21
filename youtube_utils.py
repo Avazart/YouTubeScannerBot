@@ -16,26 +16,25 @@ from youtube_parser.youtube_parser import parse_channel_info, parse_channel, par
 class YouTubeChannelData:
     videos: list[YouTubeVideo] = dataclasses.field(default_factory=list)
     streams: list[YouTubeVideo] = dataclasses.field(default_factory=list)
-    shorts: list[YouTubeVideo] = dataclasses.field(default_factory=list)
 
     def __iter__(self):
-        return itertools.chain(self.videos, self.streams, self.shorts)
+        return itertools.chain(self.videos, self.streams)
 
     def __bool__(self):
-        return bool(self.videos or self.streams or self.shorts)
+        return bool(self.videos or self.streams)
 
 
 ScanData = dict[YouTubeChannel, YouTubeChannelData]
 
 
-def has_tab(urls: list[str], tab_name: str) -> bool:
+def _has_tab(urls: list[str], tab_name: str) -> bool:
     for url in urls:
         if url.endswith(tab_name):
             return True
     return False
 
 
-def make_video(data: dict, scan_time, channel_id: int) -> YouTubeVideo:
+def _make_video(data: dict, scan_time, channel_id: int) -> YouTubeVideo:
     if data['time_ago']:
         time_delta: relativedelta = parse_time_age(data['time_ago'])
         creation_time = scan_time - time_delta
@@ -53,35 +52,30 @@ def make_video(data: dict, scan_time, channel_id: int) -> YouTubeVideo:
 
 async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
     scan_time = datetime.now()
-    f = partial(make_video, scan_time=scan_time, channel_id=channel.id)
+    make_video = partial(_make_video, scan_time=scan_time, channel_id=channel.id)
 
     async with aiohttp.ClientSession() as session:
         headers = {'Accept-Language': 'en-US,en;q=0.5'}
         session.headers.update(headers)
-
         params = dict(view=0, sort='dd', flow='grid')
+
+        # video
         r = await session.get(channel.url + '/videos', params=params)
         r.raise_for_status()
         data = parse_channel(await r.text())
-
+        videos = list(map(make_video, data['videos']))
         tab_urls = data['tab_urls']
-        videos = list(map(f, data['videos']))
-        streams = []
-        shorts = []
 
-        for tab_videos, tab_name in zip((streams,), ('/streams',)):
-            if has_tab(tab_urls, tab_name):
-                r = await session.get(channel.url + tab_name, params=params)
-                r.raise_for_status()
-                from youtube_parser import search
-                try:
-                    tab_videos.extend(map(f, parse_channel(await r.text())['videos']))
-                except search.SearchError:
-                    pass
+        # streams
+        streams = []
+        if _has_tab(tab_urls, '/streams'):
+            r = await session.get(channel.url + '/streams', params=params)
+            r.raise_for_status()
+            data = parse_channel(await r.text())
+            streams = list(map(make_video, data['videos']))
 
         return YouTubeChannelData(videos=videos,
-                                  streams=streams,
-                                  shorts=shorts)
+                                  streams=streams)
 
 
 async def get_channel_info(url: str) -> YouTubeChannel:
