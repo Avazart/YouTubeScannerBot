@@ -3,7 +3,7 @@ from typing import Optional
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auxiliary_utils import evenly_batched
+from auxiliary_utils import batched_evenly
 from bot_ui.bot_types import (
     PageData,
     ChannelData,
@@ -93,7 +93,7 @@ def _channel_keyboard(rows: list[YouTubeChannel],
 def _tag_buttons(tags: list[Tag],
                  checked_tag_ids: set[int]) -> list[list[InlineKeyboardButton]]:
     buttons = []
-    for row in evenly_batched(tags, KEYBOARD_COLUMN_COUNT):
+    for row in batched_evenly(tags, KEYBOARD_COLUMN_COUNT):
         row_buttons = []
         for tag in row:
             text = f'{"✅" if tag.id in checked_tag_ids else "🟩"} {tag.name}'
@@ -126,7 +126,7 @@ def _tags_keyboard(tags: list[Tag],
 def _attach_tags_buttons(tag_records: list[(Tag, bool)],
                          yt_channel_id: str) -> list[list[InlineKeyboardButton]]:
     buttons = []
-    for row in evenly_batched(tag_records, KEYBOARD_COLUMN_COUNT):
+    for row in batched_evenly(tag_records, KEYBOARD_COLUMN_COUNT):
         row_buttons = []
         for tag, enable in row:
             text = f'{"✅" if enable else " "} {tag.name}'

@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 
-import httpx
+import aiohttp
+
 from dateutil.relativedelta import relativedelta
 
 from database.utils import YouTubeChannel, YouTubeVideo
@@ -54,14 +55,14 @@ async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
     scan_time = datetime.now()
     f = partial(make_video, scan_time=scan_time, channel_id=channel.id)
 
-    async with httpx.AsyncClient() as client:
+    async with aiohttp.ClientSession() as session:
         headers = {'Accept-Language': 'en-US,en;q=0.5'}
-        client.headers.update(headers)
+        session.headers.update(headers)
 
         params = dict(view=0, sort='dd', flow='grid')
-        r = await client.get(channel.url + '/videos', params=params)
+        r = await session.get(channel.url + '/videos', params=params)
         r.raise_for_status()
-        data = parse_channel(r.text)
+        data = parse_channel(await r.text())
 
         tab_urls = data['tab_urls']
         videos = list(map(f, data['videos']))
@@ -70,11 +71,11 @@ async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
 
         for tab_videos, tab_name in zip((streams,), ('/streams',)):
             if has_tab(tab_urls, tab_name):
-                r = await client.get(channel.url + tab_name, params=params)
+                r = await session.get(channel.url + tab_name, params=params)
                 r.raise_for_status()
                 from youtube_parser import search
                 try:
-                    tab_videos.extend(map(f, parse_channel(r.text)['videos']))
+                    tab_videos.extend(map(f, parse_channel(await r.text())['videos']))
                 except search.SearchError:
                     pass
 
@@ -85,12 +86,12 @@ async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
 
 async def get_channel_info(url: str) -> YouTubeChannel:
     params = dict(view=0, sort='dd', flow='grid')
-    async with httpx.AsyncClient() as client:
+    async with aiohttp.ClientSession() as session:
         headers = {'Accept-Language': 'en-US,en;q=0.5'}
-        client.headers.update(headers)
-        r = await client.get(url, params=params)
+        session.headers.update(headers)
+        r = await session.get(url, params=params)
         r.raise_for_status()
-        info = parse_channel_info(r.text)
+        info = parse_channel_info(await r.text())
         return YouTubeChannel(original_id=info['channel_id'],
                               canonical_base_url=info['canonical_base_url'],
                               title=info['title'])
