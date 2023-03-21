@@ -47,14 +47,25 @@ def _parse_renderer(video_renderer: dict) -> dict:
     return dict(id=video_id, title=title, style=style, time_ago=time_ago)
 
 
+def _has_no_video(content_0: dict) -> bool:
+    text = search.get(content_0, 'messageRenderer', 'text', 'simpleText')
+    if text is search.NotFound:
+        return False
+    return text == "This channel has no videos."
+
+
 def _parse_section_list_renderer(renderer: dict) -> list[dict]:
     videos = []
-    items = search.find_first(renderer,
-                              search.BySubPath('itemSectionRenderer',
-                                               'contents',
-                                               0,
-                                               'gridRenderer',
-                                               'items'))
+    content_0 = search.find_first(renderer,
+                                  search.BySubPath('itemSectionRenderer', 'contents', 0))
+    items = []
+    try:
+        items = search.find_first(content_0,
+                                  search.BySubPath('gridRenderer', 'items'))
+    except search.SearchError as e:
+        if not _has_no_video(content_0):
+            raise e
+
     for i, item in enumerate(items):
         if video_renderer := item.get('gridVideoRenderer'):
             videos.append(_parse_renderer(video_renderer))
