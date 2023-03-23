@@ -5,6 +5,9 @@ import sys
 from logging import getLogger
 from logging.config import dictConfig
 from pathlib import Path
+import colorlog
+import aiosqlite
+import lxml
 
 import click
 import colorama
