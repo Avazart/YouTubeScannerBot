@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Sequence
 
 import aiohttp
+import tzlocal
 from aiogram import Dispatcher, Bot
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -40,6 +41,8 @@ from settings import (
     LAST_DAYS_ON_PAGE, VIEWS_SCRIPT_PATH, BACKUP_FILE_PATH
 )
 from youtube_utils import get_channel_data, ScanData, YouTubeChannelData
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 
 async def run(settings: Settings, logger: Logger):
@@ -74,10 +77,17 @@ async def run(settings: Settings, logger: Logger):
         register_commands(dp, chat_admin_filter, bot_admin_filter)
         register_callback_queries(dp, chat_admin_filter, bot_admin_filter)
 
+        scheduler = AsyncIOScheduler(timezone=str(tzlocal.get_localzone()))
+        trigger = CronTrigger.from_crontab(settings.cron_schedule,
+                                           timezone=str(tzlocal.get_localzone()))
+        scheduler.add_job(update,
+                          args=(q, SessionMaker, settings, logger),
+                          trigger=trigger)
+        scheduler.start()
+
         context = BotContext(logger, SessionMaker, settings, Storage())
         tasks = [
             dp.start_polling(bot, skip_updates=True, context=context),
-            update_loop(q, SessionMaker, settings, logger),
             send_worker(q, settings, bot, logger),
         ]
         await asyncio.gather(*tasks)
@@ -90,56 +100,43 @@ async def run(settings: Settings, logger: Logger):
             save_message_queue(settings.work_dir / QUEUE_FILE_PATH, q)
 
 
-async def update_loop(q: Queue[MessageGroup],
-                      SessionMaker,
-                      settings: Settings,
-                      logger: Logger):
-    if not q.empty():
-        logger.info('Waiting ...')
-        await asyncio.sleep(settings.update_interval)
-
-    while True:
-        async with SessionMaker.begin() as session:
-            await update(q, session, settings, logger)
-        logger.info('Waiting ...')
-        await asyncio.sleep(settings.update_interval)
-
-
 async def update(q: Queue[MessageGroup],
-                 session: AsyncSession,
+                 SessionMaker,
                  settings: Settings,
                  logger: Logger):
-    logger.info('Updating ...')
-    tg_to_yt_channels, tg_yt_to_forwarding = await get_forwarding_data(session)
-    youtube_channels = list(set(itertools.chain.from_iterable(tg_to_yt_channels.values())))
-    random.shuffle(youtube_channels)
-    logger.debug(f'Channel count {len(youtube_channels)}')
+    async with SessionMaker.begin() as session:
+        logger.info('Updating ...')
+        tg_to_yt_channels, tg_yt_to_forwarding = await get_forwarding_data(session)
+        youtube_channels = list(set(itertools.chain.from_iterable(tg_to_yt_channels.values())))
+        random.shuffle(youtube_channels)
+        logger.debug(f'Channel count {len(youtube_channels)}')
 
-    logger.info('Scan youtube channels ...')
-    scan_data = await scan_youtube_channels(youtube_channels, settings.request_delay, logger)
+        logger.info('Scan youtube channels ...')
+        scan_data = await scan_youtube_channels(youtube_channels, settings.request_delay, logger)
 
-    logger.info('Search new videos ...')
-    new_data = await get_new_data(scan_data, session, logger)
-    new_videos = frozenset(itertools.chain.from_iterable(list(new_data.values())))
+        logger.info('Search new videos ...')
+        new_data = await get_new_data(scan_data, session, logger)
+        new_videos = frozenset(itertools.chain.from_iterable(list(new_data.values())))
 
-    logger.info(f'New videos: {len(new_videos)}')
-    if new_videos:
-        logger.info(fmt_scan_data(new_data))
+        logger.info(f'New videos: {len(new_videos)}')
+        if new_videos:
+            logger.info(fmt_scan_data(new_data))
 
-        logger.info('Make message groups ...')
-        tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
-        groups = make_message_groups(tg_to_yt_videos, youtube_channels)
-        for group in groups:
-            await q.put(group)
-        if groups:
-            logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
+            logger.info('Make message groups ...')
+            tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
+            groups = make_message_groups(tg_to_yt_videos, youtube_channels)
+            for group in groups:
+                await q.put(group)
+            if groups:
+                logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
 
-        logger.info('Save new videos to database ...')
-        try:
-            session.add_all(new_videos)
-            await session.commit()
-        except Exception as e:
-            logger.exception(e)
+            logger.info('Save new videos to database ...')
+            try:
+                session.add_all(new_videos)
+                await session.commit()
+            except Exception as e:
+                logger.exception(e)
+        logger.info('Updating finished')
 
 
 async def scan_youtube_channels(channels: Sequence[YouTubeChannel],

@@ -28,7 +28,7 @@ class Settings:
     debug: bool = False
     without_sending: bool = False
 
-    update_interval: float = 30 * 60
+    cron_schedule: str = '*/30 * * * *'
     request_delay: float = 1
     send_delay: float = 5 * 60
     error_delay: float = 65
