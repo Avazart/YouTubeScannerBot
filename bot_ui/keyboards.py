@@ -1,5 +1,3 @@
-from typing import Optional
-
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,13 +14,13 @@ from bot_ui.bot_types import (
     NavigationData,
     CloseData
 )
-from database.models import YouTubeChannel, Tag, Status
+from database.models import YouTubeChannel, Tag, Status, YouTubeChannelTag
 from database.utils import Destination, get_yt_channels, get_tags, get_tgs, get_yt_channel_tags
 from settings import KEYBOARD_COLUMN_COUNT
 
 
-def _nav_buttons(prev_offset: Optional[int],
-                 next_offset: Optional[int],
+def _nav_buttons(prev_offset: int | None,
+                 next_offset: int | None,
                  keyboard: Keyboard) -> list[InlineKeyboardButton]:
     nav_buttons = []
     if prev_offset is not None:
@@ -58,7 +56,7 @@ def build_main_keyboard(is_owner: bool) -> InlineKeyboardMarkup:
 # CHANNEL
 
 def _channel_buttons(rows: list[YouTubeChannel],
-                     back_callback_data: str,
+                     back_callback_data: str | None,
                      is_owner: bool) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for channel, enabled in rows:
@@ -76,9 +74,9 @@ def _channel_buttons(rows: list[YouTubeChannel],
 
 def _channel_keyboard(rows: list[YouTubeChannel],
                       is_owner: bool,
-                      prev_offset: Optional[int],
-                      next_offset: Optional[int],
-                      back_callback_data: str) -> InlineKeyboardMarkup:
+                      prev_offset: int | None,
+                      next_offset: int | None,
+                      back_callback_data: str | None) -> InlineKeyboardMarkup:
     buttons = _channel_buttons(rows, back_callback_data, is_owner)
     if nav_buttons := _nav_buttons(prev_offset, next_offset, Keyboard.YT_CHANNELS):
         buttons.append(nav_buttons)
@@ -106,9 +104,9 @@ def _tag_buttons(tags: list[Tag],
 
 def _tags_keyboard(tags: list[Tag],
                    checked_tag_ids: set[int],
-                   prev_offset: Optional[int],
-                   next_offset: Optional[int],
-                   back_callback_data: str) -> InlineKeyboardMarkup:
+                   prev_offset: int | None,
+                   next_offset: int | None,
+                   back_callback_data: str | None) -> InlineKeyboardMarkup:
     buttons = _tag_buttons(tags, checked_tag_ids)
     if nav_buttons := _nav_buttons(prev_offset, next_offset, Keyboard.TAG_FILTER):
         buttons.append(nav_buttons)
@@ -123,7 +121,7 @@ def _tags_keyboard(tags: list[Tag],
 
 # ATTACH TAGS
 
-def _attach_tags_buttons(tag_records: list[(Tag, bool)],
+def _attach_tags_buttons(tag_records: list[tuple[YouTubeChannelTag, bool]],
                          yt_channel_id: str) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for row in batched_evenly(tag_records, KEYBOARD_COLUMN_COUNT):
@@ -137,11 +135,11 @@ def _attach_tags_buttons(tag_records: list[(Tag, bool)],
     return buttons
 
 
-def _attach_tags_keyboard(tag_records: list[(Tag, bool)],
+def _attach_tags_keyboard(tag_records: list[tuple[YouTubeChannelTag, bool]],
                           yt_channel_id: str,
-                          prev_offset: Optional[int],
-                          next_offset: Optional[int],
-                          back_callback_data: str) -> InlineKeyboardMarkup:
+                          prev_offset: int | None,
+                          next_offset: int | None,
+                          back_callback_data: str | None) -> InlineKeyboardMarkup:
     buttons = _attach_tags_buttons(tag_records, yt_channel_id)
     if nav_buttons := _nav_buttons(prev_offset, next_offset, Keyboard.ATTACH_TAGS):
         buttons.append(nav_buttons)
@@ -177,9 +175,9 @@ def _tg_objects_buttons(tgs: list[Destination]) -> list[list[InlineKeyboardButto
 
 
 def _tgs_keyboard(tgs: list[Destination],
-                  prev_offset: Optional[int],
-                  next_offset: Optional[int],
-                  back_callback_data: str) -> InlineKeyboardMarkup:
+                  prev_offset: int | None,
+                  next_offset: int | None,
+                  back_callback_data: str | None) -> InlineKeyboardMarkup:
     buttons = _tg_objects_buttons(tgs)
     nav_button = _nav_buttons(prev_offset, next_offset, Keyboard.TG_OBJECTS)
     if nav_button:
@@ -190,7 +188,7 @@ def _tgs_keyboard(tgs: list[Destination],
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def _calc_offsets(offset, count, length) -> tuple[Optional[int], Optional[int]]:
+def _calc_offsets(offset, count, length) -> tuple[int | None, int | None]:
     prev_offset = offset - count if offset > 0 else None
     next_offset = offset + count if length > count else None
     return prev_offset, next_offset
@@ -199,12 +197,12 @@ def _calc_offsets(offset, count, length) -> tuple[Optional[int], Optional[int]]:
 # BUILD FUNCTION WITH USING DB FUNCTION
 
 async def build_channel_keyboard(chat_id: int,
-                                 thread_id: Optional[int],
+                                 thread_id: int | None,
                                  is_owner: bool,
                                  offset: int,
                                  count: int,
                                  tags_ids: set,
-                                 back_callback_data: str,
+                                 back_callback_data: str | None,
                                  session: AsyncSession):
     rows = await get_yt_channels(chat_id, thread_id, tags_ids, offset, count + 1, session)
     prev_offset = offset - count if offset > 0 else None
@@ -218,7 +216,7 @@ async def build_channel_keyboard(chat_id: int,
 async def build_tag_filter_keyboard(offset: int,
                                     count: int,
                                     checked_tag_ids: set[int],
-                                    back_callback_data: str,
+                                    back_callback_data: str | None,
                                     session: AsyncSession) -> InlineKeyboardMarkup:
     tags = await get_tags(offset, count + 1, session)
     prev_offset = offset - count if offset > 0 else None
@@ -232,7 +230,7 @@ async def build_tag_filter_keyboard(offset: int,
 
 async def build_telegram_tg_keyboard(offset: int,
                                      count: int,
-                                     back_callback_data: str,
+                                     back_callback_data: str | None,
                                      session: AsyncSession):
     tgs = await get_tgs(offset, count + 1, session)
     prev_offset = offset - count if offset > 0 else None
@@ -244,7 +242,7 @@ async def build_telegram_tg_keyboard(offset: int,
 async def build_attach_tags_keyboard(yt_channel_id,
                                      offset: int,
                                      count: int,
-                                     back_callback_data: str,
+                                     back_callback_data: str | None,
                                      session: AsyncSession):
     tag_records = await get_yt_channel_tags(yt_channel_id, offset, count + 1, session)
     prev_offset = offset - count if offset > 0 else None

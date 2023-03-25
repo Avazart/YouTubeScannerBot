@@ -2,8 +2,17 @@ import dataclasses
 import os
 from functools import partial
 from pathlib import Path
-from types import GenericAlias
-from typing import Type, Any, Mapping, Iterable, get_origin, get_args, TypeAlias, MutableMapping, Generator
+from typing import (
+    Type,
+    Any,
+    MutableMapping,
+    Mapping,
+    Iterable,
+    TypeAlias,
+    Generator,
+    get_origin,
+    get_args
+)
 
 _SIMPLE_TYPES = (bool, int, float, str, Path)
 _COLLECTION_TYPES = (list, set, frozenset, tuple, dict)
@@ -59,10 +68,10 @@ def _split_str(s: str,
                max_split=-1) -> list[str]:
     parts = s.split(sep, max_split) if len(s) != 0 else []
     if strip:
-        parts = map(str.strip, parts)
+        parts = [str.strip(e) for e in parts]
     if skip_empty_parts:
-        parts = filter(None, parts)
-    return list(parts)
+        parts = [e for e in parts if e]
+    return parts
 
 
 def _str_to_bool(s: str) -> bool:
@@ -144,8 +153,9 @@ def _parse_dict(value: str,
     items = _parse_items(value, config)
     if arg_types := get_args(target_type):
         kt, vt = arg_types
-        items = ((_parse_simple(k, kt, name), _parse_simple(v, vt, name))
-                 for k, v in items)
+        return target_type(
+            (_parse_simple(k, kt, name), _parse_simple(v, vt, name))
+            for k, v in items)
     return target_type(items)
 
 
@@ -170,8 +180,7 @@ def _from_env(prefix: Iterable[str],
     elif issubclass(target_type, _SIMPLE_TYPES):
         return _parse_simple(value, target_type, full_name)
     else:
-        is_generic = type(target_type) is GenericAlias
-        origin_type = get_origin(target_type) if is_generic else target_type
+        origin_type = get_origin(target_type) or target_type
         if issubclass(origin_type, tuple):
             return _parse_tuple(value, target_type, full_name, config)
         elif issubclass(origin_type, dict):
@@ -189,7 +198,7 @@ def _get_default(f: dataclasses.Field) -> Any:
 
 
 def dataclass_from_env(dataclass_type,
-                       prefix: str | Iterable[str] = None,
+                       prefix: str | Iterable[str] | None = None,
                        env: Mapping = os.environ,
                        config: ParseConfig = DEFAULT_CONFIG):
     """ Create dataclass instance with data from os environment """

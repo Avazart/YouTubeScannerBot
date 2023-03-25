@@ -42,7 +42,7 @@ async def menu_command(message: Message, bot: Bot, context: BotContext):
         await session.merge(chat)
 
         if thread_original_id is not None:
-            thread = TelegramThread(id=tg.thread.id if tg else None,
+            thread = TelegramThread(id=tg.get_thread_id() if tg else None,
                                     original_id=thread_original_id,
                                     original_chat_id=message.chat.id)
             await session.merge(thread)

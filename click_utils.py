@@ -1,7 +1,7 @@
 import functools
 import logging
 import sys
-from typing import Type, get_type_hints, Iterable, Any
+from typing import Type, get_type_hints, Iterable, Any, Generator
 
 import click
 
@@ -19,7 +19,7 @@ class Field:
         self.kwargs = kwargs
 
 
-def _public_not_callable_vars(obj) -> tuple[str, Any]:
+def _public_not_callable_vars(obj) -> Generator[tuple[str, Any], Any, Any]:
     for name, value in vars(obj).items():
         if not name.startswith('_') and not callable(value):
             yield name, value
@@ -75,7 +75,7 @@ def log_work_process(logger_name: str):
     def decorator(function):
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
-            logger: logging.Logger = logging.getLogger(logger_name)
+            logger = logging.getLogger(logger_name)
             try:
                 logger.info('Start working ...')
                 function(*args, **kwargs)
@@ -109,5 +109,5 @@ if __name__ == '__main__':
         print(context.obj, settings)
 
 
-    _storage = {}
+    _storage: dict = {}
     _test.main(obj=_storage, standalone_mode=False)

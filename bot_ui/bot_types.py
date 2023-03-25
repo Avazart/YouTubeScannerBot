@@ -61,7 +61,7 @@ class StorageKey:
 class Storage:
     def __init__(self):
         self._lock = asyncio.Lock()
-        self._storage: defaultdict[StorageKey, StorageRecord] = defaultdict(StorageRecord)
+        self._storage = defaultdict(StorageRecord)
 
     async def get_data(self, key: StorageKey) -> Data:
         async with self._lock:
@@ -97,12 +97,14 @@ class Status(IntEnum):
 
     def next(self) -> 'Status':
         match self:
-            case self.ON:
-                return self.OFF
+            case Status.ON:
+                return Status.OFF
             case self.OFF:
-                return self.BAN
+                return Status.BAN
             case self.BAN:
-                return self.ON
+                return Status.ON
+            case _:
+                raise ValueError()
 
     def text(self) -> str:
         return f"{UNICODE_CHARS[int(self)]} {self.name}"
@@ -118,44 +120,44 @@ class Keyboard(IntEnum):
 
 # CallbackData
 
-class NavigationData(CallbackData, prefix='navigation'):
+class NavigationData(CallbackData, **dict(prefix='navigation')):
     keyboard: Keyboard
 
 
-class CloseData(CallbackData, prefix='close'):
+class CloseData(CallbackData, **dict(prefix='close')):
     pass
 
 
-class ChannelData(CallbackData, prefix='channel'):
+class ChannelData(CallbackData, **dict(prefix='channel')):
     id: int
     enabled: bool
 
 
-class PageData(CallbackData, prefix='page'):
+class PageData(CallbackData, **dict(prefix='page')):
     offset: int
     keyboard: Keyboard
 
 
-class TagFilterData(CallbackData, prefix='tag'):
+class TagFilterData(CallbackData, **dict(prefix='tag')):
     id: int
 
 
-class AttachTagData(CallbackData, prefix='attach_tag'):
+class AttachTagData(CallbackData, **dict(prefix='attach_tag')):
     channel_id: str
 
 
-class YtChannelTagData(CallbackData, prefix='yt_channel_tag'):
+class YtChannelTagData(CallbackData, **dict(prefix='yt_channel_tag')):
     tag_id: int
     channel_id: str
     enabled: bool
 
 
-class TgData(CallbackData, prefix='tg'):
+class TgData(CallbackData, **dict(prefix='tg')):
     chat_id: int
     thread_id: Optional[int]
 
 
-class StatusData(CallbackData, prefix='status'):
+class StatusData(CallbackData, **dict(prefix='status')):
     chat_id: int
     thread_id: Optional[int]
     status: Status

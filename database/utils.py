@@ -23,14 +23,15 @@ from database.models import (
 )
 
 TgToYouTubeChannels: TypeAlias = dict[Destination, list[YouTubeChannel]]
-TgYtToForwarding: TypeAlias = dict[(Destination, YouTubeChannel), Forwarding]
+TgYtToForwarding: TypeAlias = dict[tuple[Destination, YouTubeChannel], Forwarding]
 ForwardingData: TypeAlias = tuple[TgToYouTubeChannels, TgYtToForwarding]
 
 
 # Forwarding
 
 async def get_forwarding_data(session: AsyncSession) -> ForwardingData:
-    q: Select = select(TelegramChat, TelegramThread, YouTubeChannel, Forwarding) \
+    q: Select = select(TelegramChat, TelegramThread,
+                       YouTubeChannel, Forwarding) \
         .join(YouTubeChannel) \
         .join(TelegramChat) \
         .join(TelegramThread,
@@ -39,8 +40,8 @@ async def get_forwarding_data(session: AsyncSession) -> ForwardingData:
         .where(TelegramChat.status == int(Status.ON)) \
         .order_by(Forwarding.youtube_channel_id)
     result: ChunkedIteratorResult = await session.execute(q)
-    tg_to_youtube_channels = {}
-    tg_yt_to_forwarding = {}
+    tg_to_youtube_channels: TgToYouTubeChannels = {}
+    tg_yt_to_forwarding: TgYtToForwarding = {}
     for row in result.fetchall():
         tg = Destination(chat=row[0], thread=row[1])
         channel, forwarding = row[2], row[3]
@@ -51,7 +52,7 @@ async def get_forwarding_data(session: AsyncSession) -> ForwardingData:
 
 async def add_forwarding(youtube_channel_id: int,
                          telegram_chat_id: int,
-                         telegram_thread_id: Optional[int],
+                         telegram_thread_id: int | None,
                          session: AsyncSession):
     f = Forwarding(youtube_channel_id=youtube_channel_id,
                    telegram_chat_id=telegram_chat_id,
@@ -61,11 +62,12 @@ async def add_forwarding(youtube_channel_id: int,
 
 async def delete_forwarding(youtube_channel_id: int,
                             telegram_chat_id: int,
-                            telegram_thread_id: Optional[int],
+                            telegram_thread_id: int | None,
                             session: AsyncSession):
-    q = delete(Forwarding).where((Forwarding.youtube_channel_id == youtube_channel_id) &
-                                 (Forwarding.telegram_chat_id == telegram_chat_id) &
-                                 (Forwarding.telegram_thread_id == telegram_thread_id))
+    q = delete(Forwarding) \
+        .where((Forwarding.youtube_channel_id == youtube_channel_id) &
+               (Forwarding.telegram_chat_id == telegram_chat_id) &
+               (Forwarding.telegram_thread_id == telegram_thread_id))
 
     await session.execute(q)
 
@@ -74,14 +76,16 @@ async def delete_forwarding(youtube_channel_id: int,
 
 async def get_yt_channel_title_by_id(channel_id: str,
                                      session: AsyncSession) -> Optional[str]:
-    q: Select = select(YouTubeChannel.title).where(YouTubeChannel.id == channel_id)
+    q: Select = select(YouTubeChannel.title)\
+        .where(YouTubeChannel.id == channel_id)
     result: ChunkedIteratorResult = await session.execute(q)
     if rows := result.fetchone():
         return rows[0]
     return None
 
 
-async def get_yt_channel_by_id(channel_id: str, session: AsyncSession) -> Optional[YouTubeChannel]:
+async def get_yt_channel_by_id(channel_id: str,
+                               session: AsyncSession) -> Optional[YouTubeChannel]:
     q = select(YouTubeChannel).where(YouTubeChannel.id == channel_id)
     result: ChunkedIteratorResult = await session.execute(q)
     if rows := result.fetchone():
@@ -89,8 +93,10 @@ async def get_yt_channel_by_id(channel_id: str, session: AsyncSession) -> Option
     return None
 
 
-async def get_yt_channel_id_by_original_id(original_id: str, session: AsyncSession) -> Optional[int]:
-    q = select(YouTubeChannel).where(YouTubeChannel.original_id == original_id)
+async def get_yt_channel_id_by_original_id(original_id: str,
+                                           session: AsyncSession) -> int | None:
+    q = select(YouTubeChannel)\
+        .where(YouTubeChannel.original_id == original_id)
     result: ChunkedIteratorResult = await session.execute(q)
     if rows := result.fetchone():
         return rows[0].id
@@ -98,11 +104,11 @@ async def get_yt_channel_id_by_original_id(original_id: str, session: AsyncSessi
 
 
 async def get_yt_channels(tg_chat_id: int,
-                          tg_thread_id: Optional[int],
+                          tg_thread_id: int | None,
                           tag_ids: set[int],
-                          offset: Optional[int],
-                          limit: Optional[int],
-                          session: AsyncSession):
+                          offset: int | None,
+                          limit: int | None,
+                          session: AsyncSession) -> list[YouTubeChannel]:
     q = select(YouTubeChannel,
                exists(select(Forwarding)
                       .join(TelegramThread,
@@ -140,7 +146,8 @@ async def get_last_video_ids(channel_id: int,
     last_time = datetime.today() - timedelta(days=last_days)
     q = select(YouTubeVideo) \
         .where((YouTubeVideo.channel_id == channel_id) &
-               ((YouTubeVideo.creation_time >= last_time) | (YouTubeVideo.live_24_7 == True))
+               ((YouTubeVideo.creation_time >= last_time) |
+                (YouTubeVideo.live_24_7 == True))
                ) \
         .order_by(YouTubeVideo.creation_time.desc())
     result = await session.execute(q)
@@ -169,7 +176,7 @@ async def tg_by_user_name(user_name: str,
 
 
 async def get_destinations(original_chat_id: int,
-                           original_thread_id: Optional[int],
+                           original_thread_id: int | None,
                            session: AsyncSession) -> Optional[Destination]:
     q = select(TelegramChat, TelegramThread) \
         .join(TelegramThread,
@@ -185,7 +192,7 @@ async def get_destinations(original_chat_id: int,
 
 async def set_telegram_chat_status(chat_id: int,
                                    status: Status,
-                                   session: AsyncSession):
+                                   session: AsyncSession) -> None:
     q = update(TelegramChat) \
         .values({"status": int(status.next())}) \
         .where(TelegramChat.original_id == chat_id)
@@ -195,7 +202,7 @@ async def set_telegram_chat_status(chat_id: int,
 # TAG
 
 async def get_tag_id_by_name(tag_name: str,
-                             session: AsyncSession) -> Optional[int]:
+                             session: AsyncSession) -> int | None:
     q = select(Tag).where(Tag.name == tag_name)
     result: ChunkedIteratorResult = await session.execute(q)
     if rows := result.fetchone():
@@ -203,8 +210,10 @@ async def get_tag_id_by_name(tag_name: str,
     return None
 
 
-async def delete_channel_by_original_id(original_id: str, session: AsyncSession):
-    q = delete(YouTubeChannel).where(YouTubeChannel.original_id == original_id)
+async def delete_channel_by_original_id(original_id: str,
+                                        session: AsyncSession) -> None:
+    q = delete(YouTubeChannel)\
+        .where(YouTubeChannel.original_id == original_id)
     await session.execute(q)
 
 
@@ -214,8 +223,8 @@ async def delete_tag_by_name(tag_name: str,
     await session.execute(q)
 
 
-async def get_tags(offset: Optional[int],
-                   limit: Optional[int],
+async def get_tags(offset: int | None,
+                   limit: int | None,
                    session: AsyncSession) -> list[Tag]:
     q = select(Tag).order_by(Tag.order)
     if offset is not None:
@@ -239,9 +248,9 @@ async def delete_yt_channel_tag(tag_id: int, channel_id: str, session: AsyncSess
 
 
 async def get_yt_channel_tags(yt_channel_id: str,
-                              offset: Optional[int],
-                              limit: Optional[int],
-                              session: AsyncSession) -> list[(YouTubeChannel, bool)]:
+                              offset: int | None,
+                              limit: int | None,
+                              session: AsyncSession) -> list[tuple[YouTubeChannelTag, bool]]:
     q = select(Tag,
                exists(select(YouTubeChannelTag).where(
                    (YouTubeChannelTag.channel_id == yt_channel_id) &
@@ -253,12 +262,12 @@ async def get_yt_channel_tags(yt_channel_id: str,
     if limit is not None:
         q = q.limit(limit)
     result = await session.execute(q)
-    rows: list[Row] = result.fetchall()
+    rows = result.fetchall()
     return rows
 
 
-async def get_tgs(offset: Optional[int],
-                  limit: Optional[int],
+async def get_tgs(offset: int | None,
+                  limit: int | None,
                   session: AsyncSession) -> list[Destination]:
     q = select(TelegramChat, TelegramThread) \
         .join(TelegramThread,

@@ -19,7 +19,7 @@ from database.utils import get_tags
 from youtube_utils import get_channel_info
 
 MODELS = (YouTubeChannel, TelegramChat, TelegramThread, Forwarding, Tag, YouTubeChannelTag)
-TABLES = {model.__tablename__: model for model in MODELS}
+TABLES = {getattr(model, '__tablename__'): model for model in MODELS}
 
 
 def model_object_as_dict(obj) -> dict:

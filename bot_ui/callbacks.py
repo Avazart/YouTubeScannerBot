@@ -93,6 +93,7 @@ async def show_channels_keyboard(query: CallbackQuery, context: BotContext):
         data.back_callback_data = NavigationData(keyboard=Keyboard.TAG_FILTER).pack()
         data.yt_channels_offset = 0
         async with context.SessionMaker.begin() as session:
+            assert data.original_chat_id  # FIXME
             keyboard = await build_channel_keyboard(data.original_chat_id,
                                                     data.original_thread_id,
                                                     key.user_id in context.settings.bot_admin_ids,
@@ -131,29 +132,29 @@ async def channel_checked(query: CallbackQuery,
     key = StorageKey.from_callback_query(query)
     if data := await context.storage.get_data(key):
         async with context.SessionMaker.begin() as session:
-            tg = await get_destinations(data.original_chat_id, data.original_thread_id, session)
-            if not callback_data.enabled:
-                await add_forwarding(callback_data.id,
-                                     tg.chat.original_id,
-                                     tg.get_thread_id(),
-                                     session)
-            else:
-                await delete_forwarding(callback_data.id,
-                                        tg.chat.original_id,
-                                        tg.get_thread_id(),
-                                        session)
-
-        async with context.SessionMaker.begin() as session:
-            keyboard = await build_channel_keyboard(tg.chat.original_id,
-                                                    tg.get_thread_original_id(),
-                                                    key.user_id in context.settings.bot_admin_ids,
-                                                    data.yt_channels_offset,
-                                                    MAX_YT_CHANNEL_COUNT,
-                                                    data.tags_ids,
-                                                    data.back_callback_data,
-                                                    session)
-            await query.message.edit_reply_markup(reply_markup=keyboard)
-        await context.storage.set_data(key, data)
+            assert data.original_chat_id  # FIXME
+            if tg := await get_destinations(data.original_chat_id, data.original_thread_id, session):
+                if not callback_data.enabled:
+                    await add_forwarding(callback_data.id,
+                                         tg.chat.original_id,
+                                         tg.get_thread_id(),
+                                         session)
+                else:
+                    await delete_forwarding(callback_data.id,
+                                            tg.chat.original_id,
+                                            tg.get_thread_id(),
+                                            session)
+                # async with context.SessionMaker.begin() as session:
+                keyboard = await build_channel_keyboard(tg.chat.original_id,
+                                                        tg.get_thread_original_id(),
+                                                        key.user_id in context.settings.bot_admin_ids,
+                                                        data.yt_channels_offset,
+                                                        MAX_YT_CHANNEL_COUNT,
+                                                        data.tags_ids,
+                                                        data.back_callback_data,
+                                                        session)
+                await query.message.edit_reply_markup(reply_markup=keyboard)
+            await context.storage.set_data(key, data)
 
 
 async def tag_button_pressed(query: CallbackQuery,
@@ -260,6 +261,7 @@ async def nav_button_pressed(query: CallbackQuery,
                                                                 session)
                 case Keyboard.YT_CHANNELS:
                     data.yt_channels_offset = callback_data.offset
+                    assert data.original_chat_id is not None  # FIXME
                     keyboard = await build_channel_keyboard(data.original_chat_id,
                                                             data.original_thread_id,
                                                             key.user_id in context.settings.bot_admin_ids,
@@ -283,10 +285,22 @@ def register_callback_queries(dp: Dispatcher,
                               chat_admin_filter: ChatAdminFilter,
                               bot_admin_filter: BotAdminFilter):
     callback_queries = (
-        (back_to_main_keyboard, chat_admin_filter, NavigationData.filter(F.keyboard == Keyboard.MAIN)),
-        (show_tag_filter_keyboard, chat_admin_filter, NavigationData.filter(F.keyboard == Keyboard.TAG_FILTER)),
-        (show_channels_keyboard, chat_admin_filter, NavigationData.filter(F.keyboard == Keyboard.YT_CHANNELS)),
-        (show_tg_keyboard, chat_admin_filter, NavigationData.filter(F.keyboard == Keyboard.TG_OBJECTS)),
+        (back_to_main_keyboard,
+         chat_admin_filter,
+         NavigationData.filter(F.keyboard == Keyboard.MAIN)),
+
+        (show_tag_filter_keyboard,
+         chat_admin_filter,
+         NavigationData.filter(F.keyboard == Keyboard.TAG_FILTER)),
+
+        (show_channels_keyboard,
+         chat_admin_filter,
+         NavigationData.filter(F.keyboard == Keyboard.YT_CHANNELS)),
+
+        (show_tg_keyboard,
+         chat_admin_filter,
+         NavigationData.filter(F.keyboard == Keyboard.TG_OBJECTS)),
+
         (close_keyboard, chat_admin_filter, CloseData.filter()),
 
         (nav_button_pressed, chat_admin_filter, PageData.filter()),

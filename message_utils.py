@@ -31,7 +31,7 @@ def save_message_queue(file_path: Path, q: Queue[MessageGroup]):
 
 
 def load_message_queue(file_path: Path, last_time:  datetime) -> Queue[MessageGroup]:
-    q = Queue()
+    q: Queue[MessageGroup] = Queue()
 
     def time_filter(m: ScannerMessage) -> bool:
         return m.youtube_video.creation_time >= last_time
@@ -50,7 +50,7 @@ def get_tg_to_yt_videos(scan_data: ScanData,
                         tg_to_yt_channels: TgToYouTubeChannels) -> TgToYouTubeVideos:
     tg_to_yt_videos = {}
     for tg, channels in tg_to_yt_channels.items():
-        videos = []
+        videos: list[YouTubeVideo] = []
         for channel in channels:
             videos.extend(scan_data.get(channel, []))
         tg_to_yt_videos[tg] = sorted(videos, key=lambda v: v.creation_time)

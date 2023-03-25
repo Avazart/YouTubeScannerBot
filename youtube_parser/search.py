@@ -1,5 +1,8 @@
 from collections import deque
-from typing import Sequence, Mapping, Callable, Any, Union
+from typing import Sequence, Mapping, Callable, Any, TypeAlias,  Generator
+
+KiValueGen: TypeAlias = Generator[tuple[Any, Any], None, None]
+Callback = Callable[[list, str | int, Any], tuple[bool, Any]]
 
 
 class SearchError(Exception):
@@ -12,26 +15,27 @@ class NotFound:
 
 NOT_FOUND = NotFound()
 
-Callback = Callable[[list, Union[str, int], Any], tuple[bool, Any]]
 
-
-def get(root: Union[Sequence, Mapping],
-        *path: Union[str, int],
-        default=NOT_FOUND) -> Union[Any, NotFound]:
+def get(root: Sequence | Mapping,
+        *path: str | int,
+        default=NOT_FOUND) -> Any | NotFound:
     for e in path:
         if type(e) is int:
-            if not isinstance(root, Sequence) or e >= len(root):
+            if isinstance(root, Sequence) and e < len(root):
+                root = root[e]
+            else:
                 return default
         elif type(e) is str:
-            if not isinstance(root, Mapping) or e not in root:
+            if isinstance(root, Mapping) and e in root:
+                root = root[e]
+            else:
                 return default
         else:
             raise SearchError('Wrong path!')
-        root = root[e]
     return root
 
 
-def _iterate_map_or_seq(obj: Union[Sequence, Mapping]) -> tuple[Any, Any]:
+def _iterate_map_or_seq(obj: Sequence | Mapping) -> KiValueGen:
     if isinstance(obj, Mapping):
         for key, value in obj.items():
             yield key, value
@@ -47,8 +51,8 @@ def _is_composite_object(obj) -> bool:
            (isinstance(obj, Sequence) and not isinstance(obj, str))
 
 
-def find_first(root: Union[Sequence, Mapping], callback: Callback) -> Any:
-    q = deque([([], root), ])
+def find_first(root: Sequence | Mapping, callback: Callback) -> Any:
+    q: deque[Sequence | Mapping] = deque([([], root), ])
     while q:
         path, obj = q.popleft()
         if _is_composite_object(obj):
@@ -62,8 +66,8 @@ def find_first(root: Union[Sequence, Mapping], callback: Callback) -> Any:
     raise SearchError('Not found!')
 
 
-def find_all(root: Union[Sequence, Mapping], callback: Callback) -> list:
-    q = deque([([], root), ])
+def find_all(root: Sequence | Mapping, callback: Callback) -> list:
+    q: deque[Sequence[Any] | Mapping[Any, Any]] = deque([([], root), ])
     results = []
     while q:
         path, obj = q.popleft()
@@ -82,14 +86,14 @@ class ByKey:
     def __init__(self, key: str):
         self._key = key
 
-    def __call__(self, path: list, ki: Union[str, int], value: Any) -> tuple[bool, Any]:
+    def __call__(self, path: list, ki: str | int, value: Any) -> tuple[bool, Any]:
         if (type(ki) is not int) and ki == self._key:
             return True, value
         return False, None  # found, result_value
 
 
 class BySubPath:
-    def __init__(self, *sub_path: Union[str, int], return_root: bool = False):
+    def __init__(self, *sub_path: str | int, return_root: bool = False):
         self._sub_path = sub_path
         self._return_root = return_root
 

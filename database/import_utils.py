@@ -19,7 +19,7 @@ def import_tags(file_path: Path, cursor: Cursor) -> dict[str:int]:
     return tags
 
 
-def import_channels(file_path: Path, tags: dict[str:int], cursor: Cursor) -> dict[str, int]:
+def import_channels(file_path: Path, tags: dict[str,int], cursor: Cursor) -> dict[str, int]:
     q1 = ('INSERT OR REPLACE INTO YouTubeChannels '
           '(original_id, canonical_base_url, title) '
           'VALUES (?,?,?)')
@@ -45,7 +45,7 @@ def import_channels(file_path: Path, tags: dict[str:int], cursor: Cursor) -> dic
     return channels
 
 
-def import_forwarding(file_path: Path, channels: dict[str:int], cursor: Cursor):
+def import_forwarding(file_path: Path, channels: dict[str, int], cursor: Cursor):
     q1 = ('INSERT OR REPLACE INTO TelegramChats '
           '(original_id, user_name, title) '
           'VALUES (?,?,?)')
