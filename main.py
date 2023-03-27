@@ -5,14 +5,10 @@ import sys
 from logging import getLogger
 from logging.config import dictConfig
 from pathlib import Path
-import colorlog
-import aiosqlite
-import lxml
 
 import click
 import colorama
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 import click_utils
 from backup_utils import export_data, import_channels, import_data
@@ -73,8 +69,8 @@ def command_recreate_db(context):
 def command_import(context, file_path: str):
     settings = context.obj['settings']
     engine = create_async_engine(settings.database_url, echo=False)
-    SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    asyncio.run(import_data(Path(file_path), SessionMaker))
+    session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    asyncio.run(import_data(Path(file_path), session_maker))
 
 
 @command_group.command(name='import_channels')
@@ -84,8 +80,8 @@ def command_import(context, file_path: str):
 def command_import_channels(context, file_path: str):
     settings = context.obj['settings']
     engine = create_async_engine(settings.database_url, echo=False)
-    SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    asyncio.run(import_channels(Path(file_path), SessionMaker))
+    session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    asyncio.run(import_channels(Path(file_path), session_maker))
 
 
 @command_group.command(name='export')
@@ -95,8 +91,8 @@ def command_import_channels(context, file_path: str):
 def command_export(context, file_path: str):
     settings = context.obj['settings']
     engine = create_async_engine(settings.database_url, echo=False)
-    SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    asyncio.run(export_data(Path(file_path), SessionMaker))
+    session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    asyncio.run(export_data(Path(file_path), session_maker))
 
 
 def startup():

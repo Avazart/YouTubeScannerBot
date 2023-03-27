@@ -55,29 +55,29 @@ def build_main_keyboard(is_owner: bool) -> InlineKeyboardMarkup:
 
 # CHANNEL
 
-def _channel_buttons(rows: list[YouTubeChannel],
-                     back_callback_data: str | None,
+def _channel_buttons(rows: list[tuple[YouTubeChannel, bool]],
                      is_owner: bool) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for channel, enabled in rows:
         text = f'{"✅" if enabled else " "} {channel.title}'
-        data = ChannelData(id=channel.id, enabled=enabled, back_location=back_callback_data)
+        assert channel.id is not None
+        data = ChannelData(id=channel.id, enabled=enabled)
         check_button = InlineKeyboardButton(text=text, callback_data=data.pack())
         link_button = InlineKeyboardButton(text='Open in browser', url=channel.canonical_url)
         buttons.append([check_button, link_button])
         if is_owner:
-            data = AttachTagData(channel_id=channel.id)
-            tags_button = InlineKeyboardButton(text='Tags', callback_data=data.pack())
+            data2 = AttachTagData(channel_id=channel.id)
+            tags_button = InlineKeyboardButton(text='Tags', callback_data=data2.pack())
             buttons[-1].append(tags_button)
     return buttons
 
 
-def _channel_keyboard(rows: list[YouTubeChannel],
+def _channel_keyboard(rows: list[tuple[YouTubeChannel, bool]],
                       is_owner: bool,
                       prev_offset: int | None,
                       next_offset: int | None,
                       back_callback_data: str | None) -> InlineKeyboardMarkup:
-    buttons = _channel_buttons(rows, back_callback_data, is_owner)
+    buttons = _channel_buttons(rows, is_owner)
     if nav_buttons := _nav_buttons(prev_offset, next_offset, Keyboard.YT_CHANNELS):
         buttons.append(nav_buttons)
     back_button = InlineKeyboardButton(text='Back', callback_data=back_callback_data)
@@ -165,11 +165,11 @@ def _tg_objects_buttons(tgs: list[Destination]) -> list[list[InlineKeyboardButto
         else:
             link_button = InlineKeyboardButton(text=_fmt_tg_object(tg), callback_data=data.pack())
         tg_button = InlineKeyboardButton(text='YouTube channels', callback_data=data.pack())
-        data = StatusData(chat_id=tg.chat.original_id,
-                          thread_id=tg.get_thread_original_id(),
-                          status=Status(tg.chat.status))
+        data2 = StatusData(chat_id=tg.chat.original_id,
+                           thread_id=tg.get_thread_original_id(),
+                           status=Status(tg.chat.status))
         status_button = InlineKeyboardButton(text=Status(tg.chat.status).text(),
-                                             callback_data=data.pack())
+                                             callback_data=data2.pack())
         buttons.append([link_button, status_button, tg_button])
     return buttons
 

@@ -1,3 +1,5 @@
+from typing import no_type_check
+
 from aiogram import Dispatcher
 from aiogram.client.bot import Bot
 from aiogram.filters import Command, CommandObject
@@ -30,7 +32,7 @@ async def start_command(message: Message):
 
 
 async def menu_command(message: Message, bot: Bot, context: BotContext):
-    async with context.SessionMaker.begin() as session:
+    async with context.session_maker.begin() as session:
         thread_original_id = get_thread_id(message)
         if tg := await get_destinations(message.chat.id, thread_original_id, session):
             chat = tg.chat
@@ -51,8 +53,9 @@ async def menu_command(message: Message, bot: Bot, context: BotContext):
 
 async def is_allowed_for_add_channel(bot: Bot, message: Message, bot_admin_ids) -> bool:
     if message.chat.type.lower() == 'private':
+        assert message.from_user
         return (message.from_user.id in bot_admin_ids) or \
-               (await bot.get_chat_members_count(message.chat.id) >= MIN_MEMBER_COUNT)
+               (await bot.get_chat_member_count(message.chat.id) >= MIN_MEMBER_COUNT)
     return True
 
 
@@ -66,11 +69,12 @@ async def add_channel_command(message: Message,
                 channel: YouTubeChannel = await get_channel_info(args[0])
                 tag_names = split_string(args[1], ',') if len(args) == 2 else []
 
-                async with context.SessionMaker.begin() as session:
-                    channel.id = await get_yt_channel_id_by_original_id(channel.original_id, session)
+                async with context.session_maker.begin() as session:
+                    channel.id = await get_yt_channel_id_by_original_id(channel.original_id,
+                                                                        session)
                     await session.merge(channel)
 
-                async with context.SessionMaker.begin() as session:
+                async with context.session_maker.begin() as session:
                     for tag_name in tag_names:
                         tag_id = await get_tag_id_by_name(tag_name, session)
                         if tag_id is None:
@@ -92,7 +96,7 @@ async def add_channel_command(message: Message,
 async def remove_channel(message: Message, command: CommandObject, context: BotContext):
     try:
         if url := command.args and command.args.strip():
-            async with context.SessionMaker.begin() as session:
+            async with context.session_maker.begin() as session:
                 channel: YouTubeChannel = await get_channel_info(url)
                 await delete_channel_by_original_id(channel.original_id, session)
             await message.reply("Channel removed.")
@@ -106,7 +110,7 @@ async def remove_channel(message: Message, command: CommandObject, context: BotC
 async def add_tag(message: Message, command: CommandObject, context: BotContext):
     if tag_name := command.args and command.args.strip():
         tag = Tag(name=tag_name)
-        async with context.SessionMaker.begin() as session:
+        async with context.session_maker.begin() as session:
             await session.merge(tag)
         await message.reply("Successfully added.")
     else:
@@ -115,13 +119,14 @@ async def add_tag(message: Message, command: CommandObject, context: BotContext)
 
 async def remove_tag(message: Message, command: CommandObject, context: BotContext):
     if tag_name := command.args and command.args.strip():
-        async with context.SessionMaker.begin() as session:
+        async with context.session_maker.begin() as session:
             await delete_tag_by_name(tag_name, session)
         await message.reply("Tag removed.")
     else:
         await message.reply("Tag name missing!")
 
 
+@no_type_check
 def register_commands(dp: Dispatcher,
                       chat_admin_filter: ChatAdminFilter,
                       bot_admin_filter: BotAdminFilter):

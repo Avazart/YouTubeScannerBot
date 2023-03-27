@@ -10,7 +10,7 @@ import aiogram
 from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.state import State
 from aiogram.fsm.storage.base import StateType
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from auxiliary_utils import get_thread_id
 from settings import Settings
@@ -29,7 +29,7 @@ class Data:
     original_thread_id: Optional[int] = None
 
     # channels -> attach tag_names -> nav_buttons
-    original_channel_id: Optional[str] = None
+    channel_id: Optional[int] = None
 
     # tag filter -> channels -> nav buttons
     tags_ids: set[int] = field(default_factory=set)
@@ -51,10 +51,12 @@ class StorageKey:
 
     @staticmethod
     def from_message(m: aiogram.types.Message) -> 'StorageKey':
+        assert m.from_user
         return StorageKey(m.chat.id, get_thread_id(m), m.from_user.id)
 
     @staticmethod
     def from_callback_query(q: aiogram.types.CallbackQuery) -> 'StorageKey':
+        assert q.message and q.message.chat and q.from_user
         return StorageKey(q.message.chat.id, get_thread_id(q.message), q.from_user.id)
 
 
@@ -82,7 +84,7 @@ class Storage:
 
 class BotContext(NamedTuple):
     logger: logging.Logger
-    SessionMaker: sessionmaker
+    session_maker: async_sessionmaker
     settings: Settings
     storage: Storage
 
@@ -143,7 +145,7 @@ class TagFilterData(CallbackData, **dict(prefix='tag')):
 
 
 class AttachTagData(CallbackData, **dict(prefix='attach_tag')):
-    channel_id: str
+    channel_id: int  # id in database
 
 
 class YtChannelTagData(CallbackData, **dict(prefix='yt_channel_tag')):

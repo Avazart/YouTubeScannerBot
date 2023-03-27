@@ -10,9 +10,10 @@ from typing import Sequence
 import aiohttp
 import tzlocal
 from aiogram import Dispatcher, Bot
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from backup_utils import import_data
 from bot_ui.bot_types import BotContext, Storage
@@ -41,16 +42,15 @@ from settings import (
     LAST_DAYS_ON_PAGE, VIEWS_SCRIPT_PATH, BACKUP_FILE_PATH
 )
 from youtube_utils import get_channel_data, ScanData, YouTubeChannelData
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
 
 
 async def run(settings: Settings, logger: Logger):
     last_time = datetime.today() - timedelta(days=LAST_DAYS_ON_PAGE)
-    q: Queue[MessageGroup] = load_message_queue(settings.work_dir / QUEUE_FILE_PATH, last_time)
+    q: Queue[MessageGroup] = load_message_queue(settings.work_dir / QUEUE_FILE_PATH,
+                                                last_time)
     try:
         engine = create_async_engine(settings.database_url, echo=False)
-        SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+        session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
         async with engine.begin() as connection:
             exists_table_names = set(await connection.run_sync(
@@ -64,7 +64,7 @@ async def run(settings: Settings, logger: Logger):
                     table = Base.metadata.tables[table_name]
                     await connection.run_sync(table.create)
                 if BACKUP_FILE_PATH.exists():
-                    await import_data(Path(BACKUP_FILE_PATH), SessionMaker)
+                    await import_data(Path(BACKUP_FILE_PATH), session_maker)
                 if VIEWS_SCRIPT_PATH.exists():
                     await create_views(VIEWS_SCRIPT_PATH, connection)
 
@@ -81,11 +81,11 @@ async def run(settings: Settings, logger: Logger):
         trigger = CronTrigger.from_crontab(settings.cron_schedule,
                                            timezone=str(tzlocal.get_localzone()))
         scheduler.add_job(update,
-                          args=(q, SessionMaker, settings, logger),
+                          args=(q, session_maker, settings, logger),
                           trigger=trigger)
         scheduler.start()
 
-        context = BotContext(logger, SessionMaker, settings, Storage())
+        context = BotContext(logger, session_maker, settings, Storage())
         tasks = [
             dp.start_polling(bot, skip_updates=True, context=context),
             send_worker(q, settings, bot, logger),
@@ -101,18 +101,22 @@ async def run(settings: Settings, logger: Logger):
 
 
 async def update(q: Queue[MessageGroup],
-                 SessionMaker,
+                 session_maker,
                  settings: Settings,
                  logger: Logger):
-    async with SessionMaker.begin() as session:
+    async with session_maker() as session:
         logger.info('Updating ...')
         tg_to_yt_channels, tg_yt_to_forwarding = await get_forwarding_data(session)
-        youtube_channels = list(set(itertools.chain.from_iterable(tg_to_yt_channels.values())))
+        youtube_channels = list(
+            set(itertools.chain.from_iterable(tg_to_yt_channels.values()))
+        )
         random.shuffle(youtube_channels)
-        logger.debug(f'Channel count {len(youtube_channels)}')
+        logger.info(f'Channel count {len(youtube_channels)}')
 
         logger.info('Scan youtube channels ...')
-        scan_data = await scan_youtube_channels(youtube_channels, settings.request_delay, logger)
+        scan_data = await scan_youtube_channels(youtube_channels,
+                                                settings.request_delay,
+                                                logger)
 
         logger.info('Search new videos ...')
         new_data = await get_new_data(scan_data, session, logger)
@@ -121,7 +125,6 @@ async def update(q: Queue[MessageGroup],
         logger.info(f'New videos: {len(new_videos)}')
         if new_videos:
             logger.info(fmt_scan_data(new_data))
-
             logger.info('Make message groups ...')
             tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
             groups = make_message_groups(tg_to_yt_videos, youtube_channels)
@@ -166,11 +169,15 @@ async def get_new_data(scan_data: ScanData,
         return list(filter(lambda v: v.creation_time >= last_time, vs))
 
     for channel, data in scan_data.items():
+        assert channel.id is not None
+
         new_videos = []
         new_streams = []
 
         if data.videos or data.streams:
-            last_video_ids = await get_last_video_ids(channel.id, LAST_DAYS_IN_DB, session)
+            last_video_ids = await get_last_video_ids(channel.id,
+                                                      LAST_DAYS_IN_DB,
+                                                      session)
 
             # /videos
             videos = filter_by_time(data.videos)
@@ -182,7 +189,8 @@ async def get_new_data(scan_data: ScanData,
             streams = filter_by_time(data.streams)
             for stream in streams:
                 if stream.original_id not in last_video_ids:
-                    if exist_stream := await get_video_by_original_id(stream.original_id, session):
+                    if exist_stream := await get_video_by_original_id(stream.original_id,
+                                                                      session):
                         if 'LIVE' in (stream.style, exist_stream.style):
                             exist_stream.style = 'LIVE'
                             exist_stream.live_24_7 = True

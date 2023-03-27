@@ -1,5 +1,6 @@
 import json
 import re
+from typing import no_type_check
 
 import bs4
 from dateutil.relativedelta import relativedelta
@@ -147,10 +148,12 @@ def parse_channel_info(content: str) -> dict:
                 canonical_base_url=canonical_base_url)
 
 
+@no_type_check
 def parse_time_age(text: str) -> relativedelta:
     if m := re.search(r'(\d+)\s+(\w+?)s?\s+ago', text):
         value, measurement = int(m.group(1)), m.group(2)
-        if measurement not in MEASUREMENT_NAMES:
+        if measurement in MEASUREMENT_NAMES:
+            return relativedelta(**{measurement + 's': value})
+        else:
             raise RuntimeError(f'Measurement "{measurement}" is not supported!')
-        return relativedelta(**{measurement + 's': value})
     raise RuntimeError(f'Time "{text}" format is not supported!')

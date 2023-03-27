@@ -30,7 +30,7 @@ def save_message_queue(file_path: Path, q: Queue[MessageGroup]):
         pickle.dump(data, file)
 
 
-def load_message_queue(file_path: Path, last_time:  datetime) -> Queue[MessageGroup]:
+def load_message_queue(file_path: Path, last_time: datetime) -> Queue[MessageGroup]:
     q: Queue[MessageGroup] = Queue()
 
     def time_filter(m: ScannerMessage) -> bool:
@@ -59,7 +59,7 @@ def get_tg_to_yt_videos(scan_data: ScanData,
 
 def make_message_groups(tg_to_yt_videos: TgToYouTubeVideos,
                         youtube_channels: Iterable[YouTubeChannel]) -> MessageGroups:
-    youtube_channels = {c.id: c for c in youtube_channels}
+    yt_channel_ids = {c.id: c for c in youtube_channels}
     groups: MessageGroups = []
     values = tg_to_yt_videos.values()
     max_count = max((len(videos) for videos in values)) if values else 0
@@ -67,7 +67,7 @@ def make_message_groups(tg_to_yt_videos: TgToYouTubeVideos,
         group: MessageGroup = []
         for tg, videos in tg_to_yt_videos.items():
             if i < len(videos):
-                youtube_channel = youtube_channels[videos[i].channel_id]
+                youtube_channel = yt_channel_ids[videos[i].channel_id]
                 m = ScannerMessage(tg, videos[i], youtube_channel.title)
                 group.append(m)
         groups.append(group)

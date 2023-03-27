@@ -5,7 +5,7 @@ from pathlib import Path
 from sqlite3 import Cursor
 
 
-def import_tags(file_path: Path, cursor: Cursor) -> dict[str:int]:
+def import_tags(file_path: Path, cursor: Cursor) -> dict[str, int]:
     q = ('INSERT OR REPLACE INTO Tags '
          "(id, name, 'order') "
          'VALUES (?,?,?)')
@@ -19,7 +19,7 @@ def import_tags(file_path: Path, cursor: Cursor) -> dict[str:int]:
     return tags
 
 
-def import_channels(file_path: Path, tags: dict[str,int], cursor: Cursor) -> dict[str, int]:
+def import_channels(file_path: Path, tags: dict[str, int], cursor: Cursor) -> dict[str, int]:
     q1 = ('INSERT OR REPLACE INTO YouTubeChannels '
           '(original_id, canonical_base_url, title) '
           'VALUES (?,?,?)')
@@ -36,11 +36,12 @@ def import_channels(file_path: Path, tags: dict[str,int], cursor: Cursor) -> dic
             r = cursor.execute(q1, (original_id,
                                     row['canonical_base_url'],
                                     row['title']))
-            channel_id = r.lastrowid
-            channels[original_id] = channel_id
+            if r.lastrowid is not None:
+                channel_id = r.lastrowid
+                channels[original_id] = channel_id
 
-            for name in map(str.strip, row['tags'].split(',')):
-                cursor.execute(q2, (tags[name], channel_id))
+                for name in map(str.strip, row['tags'].split(',')):
+                    cursor.execute(q2, (tags[name], channel_id))
 
     return channels
 
@@ -69,9 +70,9 @@ def import_forwarding(file_path: Path, channels: dict[str, int], cursor: Cursor)
 
             telegram_thread_id = row['telegram_thread_id']
 
-            r1 = cursor.execute(q1, (telegram_chat_id,
-                                     telegram_chat_user_name,
-                                     telegram_chat_title))
+            cursor.execute(q1, (telegram_chat_id,
+                                telegram_chat_user_name,
+                                telegram_chat_title))
 
             if telegram_thread_id is not None:
                 r1 = cursor.execute(q2, (telegram_thread_id, telegram_chat_id))
@@ -80,7 +81,7 @@ def import_forwarding(file_path: Path, channels: dict[str, int], cursor: Cursor)
                 thread_id = None
 
             if channel_id := channels.get(channel_original_id):
-                r3 = cursor.execute(q3, (channel_id, telegram_chat_id, thread_id))
+                cursor.execute(q3, (channel_id, telegram_chat_id, thread_id))
 
 
 def get_all_table_names(cursor: Cursor) -> list[str]:

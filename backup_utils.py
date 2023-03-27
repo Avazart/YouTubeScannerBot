@@ -31,8 +31,8 @@ def model_object_as_dict(obj) -> dict:
     return data
 
 
-async def export_data(file_path: Path, SessionMaker):
-    async with SessionMaker.begin() as session:
+async def export_data(file_path: Path, session_maker):
+    async with session_maker.begin() as session:
         data = {}
         for table_name, table_model in TABLES.items():
             q: Select = select(table_model)
@@ -43,8 +43,8 @@ async def export_data(file_path: Path, SessionMaker):
             json.dump(data, file, indent=4)
 
 
-async def import_data(file_path: Path, SessionMaker):
-    async with SessionMaker.begin() as session:
+async def import_data(file_path: Path, session_maker):
+    async with session_maker.begin() as session:
         with file_path.open('r') as file:
             data = json.load(file)
             for table_name, model in TABLES.items():
@@ -54,8 +54,8 @@ async def import_data(file_path: Path, SessionMaker):
                     await session.merge(record)
 
 
-async def import_channels(file_path: Path, SessionMaker):
-    async with SessionMaker.begin() as session:
+async def import_channels(file_path: Path, session_maker):
+    async with session_maker.begin() as session:
         exists_tags = {tag.name: tag for tag in await get_tags(None, None, session)}
 
     with file_path.open(encoding='utf-8', newline='') as file:
@@ -70,7 +70,7 @@ async def import_channels(file_path: Path, SessionMaker):
             new_tags = [Tag(name=name) for name in new_tag_names]
 
             if new_tags:
-                async with SessionMaker.begin() as session:
+                async with session_maker.begin() as session:
                     session.add_all(new_tags)
 
             for new_tag in new_tags:
@@ -79,7 +79,7 @@ async def import_channels(file_path: Path, SessionMaker):
             try:
                 channel: YouTubeChannel = await get_channel_info(url)
                 if channel.canonical_base_url:
-                    async with SessionMaker.begin() as session:
+                    async with session_maker.begin() as session:
                         await session.merge(channel)
 
                         for tag_name in tag_names:
@@ -88,19 +88,3 @@ async def import_channels(file_path: Path, SessionMaker):
                             await session.merge(yt_tag)
             except Exception as e:
                 print(f'#{i} "{url}" \n type(e) {e}')
-
-
-def test():
-    work_dir = Path('../user_data')
-    file_path = work_dir / 'backup.json'
-
-    # engine = create_async_engine(DB_STRING_FMT.format(work_dir / DB_NAME), echo=False)
-    # SessionMaker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    #
-    # asyncio.run(export_data(file_path, SessionMaker))
-    # asyncio.run(import_data(file_path, SessionMaker))
-    #
-
-
-if __name__ == '__main__':
-    test()

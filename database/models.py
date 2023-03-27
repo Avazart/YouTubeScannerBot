@@ -1,9 +1,10 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 import aiogram
-from sqlalchemy import Column, Integer, DateTime, String, Boolean, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import Integer, DateTime, String, Boolean, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 
 from auxiliary_utils import make_repr
 from bot_ui.bot_types import Status
@@ -13,16 +14,18 @@ YT_CHANNEL_URL_FMT = 'https://www.youtube.com/channel/{id}'
 YT_CHANNEL_CANONICAL_URL_FMT = 'https://www.youtube.com{base_url}'
 TG_URL_FMT = 'https://t.me/{user_name}'
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    __abstract__ = True
 
 
 class YouTubeChannel(Base):
     __tablename__ = "YouTubeChannels"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    original_id = Column(String, unique=True, nullable=False)
-    canonical_base_url = Column(String)
-    title = Column(String)
+    id: Mapped[int | None] = mapped_column(primary_key=True, autoincrement=True)
+    original_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    canonical_base_url: Mapped[str] = mapped_column(String)
+    title: Mapped[str] = mapped_column(String)
 
     @property
     def url(self) -> str:
@@ -45,17 +48,16 @@ class YouTubeChannel(Base):
 class TelegramChat(Base):
     __tablename__ = "TelegramChats"
 
-    original_id = Column(Integer, primary_key=True)
-    type = Column(String, default=None)
-    title = Column(String, default=None)
+    original_id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[str] = mapped_column(String, default=None)
+    title: Mapped[str] = mapped_column(String, default=None)
 
-    user_name = Column(String, default=None)
-    first_name = Column(String, default=None)
-    last_name = Column(String, default=None)
-    is_creator = Column(Boolean, default=False)
-    # description
+    user_name: Mapped[str] = mapped_column(String, default=None)
+    first_name: Mapped[str] = mapped_column(String, default=None)
+    last_name: Mapped[str] = mapped_column(String, default=None)
+    is_creator: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    status = Column(Integer, default=Status.ON)
+    status: Mapped[int] = mapped_column(default=int(Status.ON))
 
     @property
     def url(self) -> Optional[str]:
@@ -85,15 +87,15 @@ class TelegramChat(Base):
 class TelegramThread(Base):
     __tablename__ = "TelegramThreads"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    original_id = Column(Integer, nullable=False)
-    original_chat_id = Column(ForeignKey(TelegramChat.original_id,
-                                         ondelete="CASCADE",
-                                         onupdate='CASCADE'),
-                              nullable=False)
+    original_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    original_chat_id: Mapped[int] = mapped_column(ForeignKey(TelegramChat.original_id,
+                                                             ondelete="CASCADE",
+                                                             onupdate='CASCADE'),
+                                                  nullable=False)
 
-    title = Column(String, default=None)
+    title: Mapped[str] = mapped_column(String, default=None)
 
     __table_args__ = (UniqueConstraint('original_id',
                                        'original_chat_id',
@@ -140,16 +142,28 @@ class Destination:
 class Forwarding(Base):
     __tablename__ = "Forwarding"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    youtube_channel_id = \
-        Column(ForeignKey(YouTubeChannel.id, ondelete="CASCADE", onupdate='CASCADE'), nullable=False)
+    youtube_channel_id: Mapped[int] = mapped_column(
+        ForeignKey(YouTubeChannel.id,
+                   ondelete="CASCADE",
+                   onupdate='CASCADE'),
+        nullable=False
+    )
 
-    telegram_chat_id = \
-        Column(ForeignKey(TelegramChat.original_id, ondelete="CASCADE", onupdate='CASCADE'), nullable=False)
+    telegram_chat_id: Mapped[int] = mapped_column(
+        ForeignKey(TelegramChat.original_id,
+                   ondelete="CASCADE",
+                   onupdate='CASCADE'),
+        nullable=False
+    )
 
-    telegram_thread_id = \
-        Column(ForeignKey(TelegramThread.id, ondelete="CASCADE", onupdate='CASCADE'), nullable=True)
+    telegram_thread_id: Mapped[int] = mapped_column(
+        ForeignKey(TelegramThread.id,
+                   ondelete="CASCADE",
+                   onupdate='CASCADE'),
+        nullable=True
+    )
 
     __table_args__ = (UniqueConstraint('youtube_channel_id',
                                        'telegram_chat_id',
@@ -163,19 +177,23 @@ class Forwarding(Base):
 class YouTubeVideo(Base):
     __tablename__ = "YouTubeVideos"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    original_id = Column(String, unique=True, nullable=False)
-    channel_id = Column(ForeignKey(YouTubeChannel.id, ondelete='CASCADE', onupdate='CASCADE'),
-                        default=None)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    original_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    channel_id: Mapped[int] = mapped_column(
+        ForeignKey(YouTubeChannel.id,
+                   ondelete='CASCADE',
+                   onupdate='CASCADE'),
+        default=None
+    )
 
-    title = Column(String, default=None)
-    style = Column(String, default=None)
+    title: Mapped[str] = mapped_column(String, default=None)
+    style: Mapped[str] = mapped_column(String, default=None)
 
-    time_ago = Column(String, default=None)
-    scan_time = Column(DateTime)
-    creation_time = Column(DateTime, default=None)
+    time_ago: Mapped[str] = mapped_column(String, default=None)
+    scan_time: Mapped[datetime] = mapped_column(DateTime)
+    creation_time: Mapped[datetime] = mapped_column(DateTime, default=None)
 
-    live_24_7 = Column(Boolean, default=False)
+    live_24_7: Mapped[bool] = mapped_column(Boolean, default=False)
 
     url = property(lambda self: YT_VIDEO_URL_FMT.format(id=self.original_id))
 
@@ -192,9 +210,9 @@ class YouTubeVideo(Base):
 class Tag(Base):
     __tablename__ = "Tags"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, unique=True)
-    order = Column(Integer, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    order: Mapped[int] = mapped_column(autoincrement=True)
 
     def __repr__(self):
         return make_repr(self)
@@ -209,9 +227,17 @@ class Tag(Base):
 class YouTubeChannelTag(Base):
     __tablename__ = "YouTubeChannelTags"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    tag_id = Column(ForeignKey(Tag.id, ondelete="CASCADE", onupdate='CASCADE'))
-    channel_id = Column(ForeignKey(YouTubeChannel.id, ondelete="CASCADE", onupdate='CASCADE'))
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    tag_id: Mapped[int] = mapped_column(
+        ForeignKey(Tag.id,
+                   ondelete="CASCADE",
+                   onupdate='CASCADE')
+    )
+    channel_id: Mapped[int] = mapped_column(
+        ForeignKey(YouTubeChannel.id,
+                   ondelete="CASCADE",
+                   onupdate='CASCADE')
+    )
 
     def __repr__(self):
         return make_repr(self)

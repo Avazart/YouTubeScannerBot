@@ -10,8 +10,10 @@ class BotAdminFilter(BaseFilter):
         super().__init__()
         self._bot_admin_ids = bot_admin_ids
 
-    async def __call__(self, mq: Union[Message, CallbackQuery], *args, **kwargs) -> bool:
-        return mq.from_user.id in self._bot_admin_ids
+    async def __call__(self, mq: Message | CallbackQuery, *args, **kwargs) -> bool:
+        if mq.from_user:
+            return mq.from_user.id in self._bot_admin_ids
+        return False
 
 
 class ChatAdminFilter(BaseFilter):
@@ -20,9 +22,18 @@ class ChatAdminFilter(BaseFilter):
         self._bot_admin_ids = bot_admin_ids
 
     async def __call__(self, mq: Union[Message, CallbackQuery], bot: Bot) -> bool:
-        chat = mq.chat if isinstance(mq, Message) else mq.message.chat
+        if isinstance(mq, Message):
+            chat = mq.chat
+        else:
+            if not mq.message:
+                return False
+            chat = mq.message.chat
+
         if chat.type == 'private':
             return True
+
+        if not mq.from_user:
+            return False
 
         if mq.from_user.id in self._bot_admin_ids:
             return True
