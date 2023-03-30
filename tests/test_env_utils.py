@@ -43,7 +43,7 @@ def prepare_env():
         "va": "1;a",
 
         # dict
-        "a_d": 'v1:a;v2:b',
+        "a_d": 'v1:a;v2:b;v3:a:b',
         "i_b_d": " 1:True;2:False",
 
         # nested
@@ -144,8 +144,9 @@ def test_dict(prepare_env):
     class D:
         a_d: dict
         i_b_d: dict[int, bool]
+
     d1 = dataclass_from_env(D)
-    d2 = D(a_d={'v1': 'a', 'v2': 'b'},
+    d2 = D(a_d={'v1': 'a', 'v2': 'b', 'v3': "a:b"},
            i_b_d={1: True, 2: False})
 
     assert d1 == d2

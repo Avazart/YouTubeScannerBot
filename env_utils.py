@@ -143,7 +143,7 @@ def _parse_items(s: str, config: ParseConfig) -> Generator[list[str], None, None
                          config.kv_sep,
                          config.strip,
                          config.skip_empty_parts,
-                         max_split=2)
+                         max_split=1)
 
 
 def _parse_dict(value: str,
