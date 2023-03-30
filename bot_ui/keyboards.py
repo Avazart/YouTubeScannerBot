@@ -143,9 +143,12 @@ def _attach_tags_keyboard(tag_records: list[tuple[YouTubeChannelTag, bool]],
     buttons = _attach_tags_buttons(tag_records, yt_channel_id)
     if nav_buttons := _nav_buttons(prev_offset, next_offset, Keyboard.ATTACH_TAGS):
         buttons.append(nav_buttons)
-    back_button = InlineKeyboardButton(text='Back', callback_data=back_callback_data)
     close_button = InlineKeyboardButton(text='Close', callback_data=CloseData().pack())
-    buttons.append([back_button, close_button])
+    if back_callback_data:
+        back_button = InlineKeyboardButton(text='Back', callback_data=back_callback_data)
+        buttons.append([back_button, close_button])
+    else:
+        buttons.append([close_button, ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 

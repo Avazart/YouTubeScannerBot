@@ -1,25 +1,25 @@
 from typing import no_type_check
 
+import aiohttp
 from aiogram import Dispatcher
 from aiogram.client.bot import Bot
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
 from auxiliary_utils import get_thread_id, split_string
-from bot_ui.bot_types import BotContext, StorageKey, Status
-from database.models import YouTubeChannel, Tag, TelegramChat, TelegramThread, YouTubeChannelTag
+from bot_ui.bot_types import BotContext, StorageKey, Status, Data
+from database.models import YouTubeChannel, Tag, TelegramChat, TelegramThread
 from database.utils import (
     get_destinations,
-    get_tag_id_by_name,
-    get_yt_channel_id_by_original_id,
+    get_yt_channel_id,
     delete_tag_by_name,
     delete_channel_by_original_id
 )
-from settings import MIN_MEMBER_COUNT
+from settings import MIN_MEMBER_COUNT, MAX_TAG_COUNT
 from youtube_utils import get_channel_info
-
 from .callbacks import show_main_keyboard
 from .filers import ChatAdminFilter, BotAdminFilter
+from .keyboards import build_attach_tags_keyboard
 
 
 async def start_command(message: Message):
@@ -51,46 +51,58 @@ async def menu_command(message: Message, bot: Bot, context: BotContext):
     await show_main_keyboard(StorageKey.from_message(message), message, bot, context)
 
 
-async def is_allowed_for_add_channel(bot: Bot, message: Message, bot_admin_ids) -> bool:
-    if message.chat.type.lower() == 'private':
-        assert message.from_user
-        return (message.from_user.id in bot_admin_ids) or \
-               (await bot.get_chat_member_count(message.chat.id) >= MIN_MEMBER_COUNT)
-    return True
-
-
 async def add_channel_command(message: Message,
                               command: CommandObject,
                               bot: Bot,
                               context: BotContext):
-    if await is_allowed_for_add_channel(bot, message, context.settings.bot_admin_ids):
+    """
+        This command works only for chat admins and admins of the bot.
+        In group chats, this command only works if the group has more than 10 members.
+        In private chats, this command is only available to admins of the bot.
+    """
+
+    if not message.from_user:
+        return
+
+    #  TODO: Move this checking to Filter
+    if message.chat.type.lower() == 'private':
+        if message.from_user.id not in context.settings.bot_admin_ids:
+            return
+    elif await bot.get_chat_member_count(message.chat.id) < MIN_MEMBER_COUNT:
+        return
+
+    if args := command.args and split_string(command.args, sep=' ', max_split=1):
         try:
-            if args := command.args and split_string(command.args, sep=' ', max_split=1):
-                channel: YouTubeChannel = await get_channel_info(args[0])
-                tag_names = split_string(args[1], ',') if len(args) == 2 else []
-
-                async with context.session_maker.begin() as session:
-                    channel.id = await get_yt_channel_id_by_original_id(channel.original_id,
-                                                                        session)
-                    await session.merge(channel)
-
-                async with context.session_maker.begin() as session:
-                    for tag_name in tag_names:
-                        tag_id = await get_tag_id_by_name(tag_name, session)
-                        if tag_id is None:
-                            await message.reply(f'Tag with name "{tag_name}" not found!')
-                            return
-                        yt_tag = YouTubeChannelTag(tag_id=tag_id, channel_id=channel.id)
-                        await session.merge(yt_tag)
-                    await message.reply("Successfully added.")
-            else:
-                await message.reply("Url missing!")
-                return
-        except Exception as e:
+            channel: YouTubeChannel = await get_channel_info(args[0])
+        except aiohttp.ClientError as e:
+            context.logger.error(f"{type(e)} {e}")
             await message.reply("I can't add this channel!")
-            raise e
-    else:
-        await message.reply("This operation is not allowed for this chat!")
+            return
+
+        async with context.session_maker() as session:
+            channel.id = await get_yt_channel_id(channel.original_id,
+                                                 session)
+            already_exists = channel.id is not None
+            if already_exists:
+                await session.merge(channel)
+            else:
+                session.add(channel)
+            await session.commit()
+
+            result = 'already exists!' if already_exists else 'successfully added.'
+            text = f'Channel "{channel.title}" {result}'
+            await message.reply(text)
+
+            key = StorageKey.from_message(message)
+            data = Data(channel_id=channel.id)
+            keyboard = await build_attach_tags_keyboard(data.channel_id,
+                                                        data.tags_offset,
+                                                        MAX_TAG_COUNT,
+                                                        data.back_callback_data,
+                                                        session)
+            text = f'Select tags for "{channel.title}"'
+            await message.answer(text, reply_markup=keyboard)
+            await context.storage.set_data(key, data)
 
 
 async def remove_channel(message: Message, command: CommandObject, context: BotContext):

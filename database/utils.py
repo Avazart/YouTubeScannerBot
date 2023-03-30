@@ -92,8 +92,8 @@ async def get_yt_channel_by_id(channel_id: int,
     return None
 
 
-async def get_yt_channel_id_by_original_id(original_id: str,
-                                           session: AsyncSession) -> int | None:
+async def get_yt_channel_id(original_id: str,
+                            session: AsyncSession) -> int | None:
     q = select(YouTubeChannel) \
         .where(YouTubeChannel.original_id == original_id)
     result: Result = await session.execute(q)
