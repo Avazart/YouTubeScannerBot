@@ -105,12 +105,19 @@ async def add_channel_command(message: Message,
             await context.storage.set_data(key, data)
 
 
-async def remove_channel(message: Message, command: CommandObject, context: BotContext):
+async def remove_channel_command(message: Message,
+                                 command: CommandObject,
+                                 context: BotContext):
+    # TODO: remove by channel_url, video_url, channel_id, channel_username
     try:
-        if url := command.args and command.args.strip():
+        if arg := command.args and command.args.strip():
             async with context.session_maker.begin() as session:
-                channel: YouTubeChannel = await get_channel_info(url)
-                await delete_channel_by_original_id(channel.original_id, session)
+                if arg.startswith('https://'):
+                    channel: YouTubeChannel = await get_channel_info(arg)
+                    channel_id = channel.original_id
+                else:
+                    channel_id = arg
+                await delete_channel_by_original_id(channel_id, session)
             await message.reply("Channel removed.")
         else:
             await message.reply("Channel url missing!")
@@ -149,7 +156,7 @@ def register_commands(dp: Dispatcher,
 
         (add_tag, bot_admin_filter, Command(commands=['add_tag', ])),
         (remove_tag, bot_admin_filter, Command(commands=['remove_tag', ])),
-        (remove_channel, bot_admin_filter, Command(commands=['remove_channel', ]))
+        (remove_channel_command, bot_admin_filter, Command(commands=['remove_channel', ]))
     )
     for command in commands:
         dp.message.register(*command)
