@@ -1,8 +1,4 @@
-import pickle
-from asyncio import Queue
 from dataclasses import dataclass
-from datetime import datetime
-from pathlib import Path
 from typing import Iterable
 
 from database.models import Destination, YouTubeVideo, YouTubeChannel
@@ -20,30 +16,6 @@ class ScannerMessage:
 MessageGroup = list[ScannerMessage]
 MessageGroups = list[MessageGroup]
 TgToYouTubeVideos = dict[Destination, list[YouTubeVideo]]
-
-
-def save_message_queue(file_path: Path, q: Queue[MessageGroup]):
-    data = []
-    while not q.empty():
-        data.append(q.get_nowait())
-    with file_path.open('wb') as file:
-        pickle.dump(data, file)
-
-
-def load_message_queue(file_path: Path, last_time: datetime) -> Queue[MessageGroup]:
-    q: Queue[MessageGroup] = Queue()
-
-    def time_filter(m: ScannerMessage) -> bool:
-        return m.youtube_video.creation_time >= last_time
-
-    if file_path.exists():
-        with file_path.open('rb') as file:
-            data = pickle.load(file)
-            for group in data:
-                group = list(filter(time_filter, group))
-                q.put_nowait(group)
-        file_path.unlink()  # remove file
-    return q
 
 
 def get_tg_to_yt_videos(scan_data: ScanData,

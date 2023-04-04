@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 VIEWS_SCRIPT_PATH = Path('views.sql')
-QUEUE_FILE_PATH = Path('queue.pickle')
 BACKUP_FILE_PATH = Path('backup.json')
 LOG_CONFIG_FILE_PATH_FMT = 'configs/log_config{}.json'
 MIN_MEMBER_COUNT = 10
@@ -24,6 +23,9 @@ class Settings:
 
     work_dir: Path
     database_url: str
+
+    redis_url: str
+    redis_queue: str = "youtube_scanner:queue"
 
     debug: bool = False
     without_sending: bool = False

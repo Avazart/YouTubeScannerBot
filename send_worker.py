@@ -1,7 +1,8 @@
 import asyncio
-from asyncio import Queue
+import pickle
 from logging import Logger
 
+import redis.asyncio
 from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter, TelegramNetworkError
 
@@ -10,7 +11,7 @@ from format_utils import fmt_pair, fmt_message
 from settings import Settings
 
 
-async def try_send_message(m:  message_utils.ScannerMessage,
+async def try_send_message(m: message_utils.ScannerMessage,
                            settings: Settings,
                            bot: Bot,
                            logger: Logger):
@@ -29,29 +30,32 @@ async def try_send_message(m:  message_utils.ScannerMessage,
         logger.error('Max limit of attempt count')
 
 
-async def send_worker(q: Queue[message_utils.MessageGroup],
-                      settings: Settings,
+async def send_worker(settings: Settings,
                       bot: Bot,
                       logger: Logger):
     while True:
-        group: message_utils.MessageGroup = await q.get()
-        failed: message_utils.MessageGroup = []
-        logger.info('Sending ...')
-        for m in group:
-            logger.info(fmt_pair(m.youtube_video, m.destination))
-            try:
-                if not settings.without_sending:
-                    await try_send_message(m, settings, bot, logger)
-            except TelegramNetworkError as e:
-                logger.error(f'Send error:\n'
-                             f'{fmt_pair(m.youtube_video, m.destination)}\n'
-                             f'{e} {type(e)}')
-                failed.append(m)
-                await asyncio.sleep(settings.error_delay)
-            except Exception as e:
-                # aiogram.exceptions.TelegramBadRequest: Bad Request: chat not found
-                logger.exception(e)
-        if failed:
-            await q.put(failed)
-        q.task_done()
+        async with redis.asyncio.from_url(settings.redis_url) as redis_client:
+            _, data = await redis_client.blpop(settings.redis_queue)
+            group: message_utils.MessageGroup = pickle.loads(data)
+            failed: message_utils.MessageGroup = []
+            logger.info('Sending ...')
+            for m in group:
+                logger.info(fmt_pair(m.youtube_video, m.destination))
+                try:
+                    if not settings.without_sending:
+                        await try_send_message(m, settings, bot, logger)
+                except TelegramNetworkError as e:
+                    logger.error(f'Send error:\n'
+                                 f'{fmt_pair(m.youtube_video, m.destination)}\n'
+                                 f'{e} {type(e)}')
+                    failed.append(m)
+                    await asyncio.sleep(settings.error_delay)
+                except Exception as e:
+                    # TODO aiogram.exceptions.TelegramBadRequest: Bad Request: chat not found
+                    logger.exception(e)
+
+            if failed:
+                dumps = [pickle.dumps(f) for f in failed]
+                await redis_client.rpush(failed, *dumps)
+
         await asyncio.sleep(settings.send_delay)

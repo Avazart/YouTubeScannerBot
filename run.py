@@ -1,13 +1,14 @@
 import asyncio
 import itertools
+import pickle
 import random
-from asyncio import Queue
 from datetime import datetime, timedelta
 from logging import Logger
 from pathlib import Path
 from typing import Sequence
 
 import aiohttp
+import redis.asyncio
 import tzlocal
 from aiogram import Dispatcher, Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -28,16 +29,12 @@ from database.utils import (
     create_views)
 from format_utils import fmt_scan_data, fmt_groups, fmt_channel
 from message_utils import (
-    MessageGroup,
-    load_message_queue,
-    save_message_queue,
     get_tg_to_yt_videos,
     make_message_groups
 )
 from send_worker import send_worker
 from settings import (
     Settings,
-    QUEUE_FILE_PATH,
     LAST_DAYS_IN_DB,
     LAST_DAYS_ON_PAGE, VIEWS_SCRIPT_PATH, BACKUP_FILE_PATH
 )
@@ -45,65 +42,54 @@ from youtube_utils import get_channel_data, ScanData, YouTubeChannelData
 
 
 async def run(settings: Settings, logger: Logger):
-    last_time = datetime.today() - timedelta(days=LAST_DAYS_ON_PAGE)
-    q: Queue[MessageGroup] = load_message_queue(settings.work_dir / QUEUE_FILE_PATH,
-                                                last_time)
-    try:
-        engine = create_async_engine(settings.database_url, echo=False)
-        session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    engine = create_async_engine(settings.database_url, echo=False)
+    session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-        async with engine.begin() as connection:
-            exists_table_names = set(await connection.run_sync(
-                lambda c: inspect(c).get_table_names()
-            ))
-            model_table_names = set(Base.metadata.tables)
-            diff = model_table_names - exists_table_names
-            if len(diff) == len(model_table_names):
-                for table_name in diff:
-                    logger.debug(f'Create table "{table_name}"')
-                    table = Base.metadata.tables[table_name]
-                    await connection.run_sync(table.create)
-                if BACKUP_FILE_PATH.exists():
-                    await import_data(Path(BACKUP_FILE_PATH), session_maker)
-                if VIEWS_SCRIPT_PATH.exists():
-                    await create_views(VIEWS_SCRIPT_PATH, connection)
+    async with engine.begin() as connection:
+        exists_table_names = set(await connection.run_sync(
+            lambda c: inspect(c).get_table_names()
+        ))
+        model_table_names = set(Base.metadata.tables)
+        diff = model_table_names - exists_table_names
+        if len(diff) == len(model_table_names):
+            for table_name in diff:
+                logger.debug(f'Create table "{table_name}"')
+                table = Base.metadata.tables[table_name]
+                await connection.run_sync(table.create)
+            if BACKUP_FILE_PATH.exists():
+                await import_data(Path(BACKUP_FILE_PATH), session_maker)
+            if VIEWS_SCRIPT_PATH.exists():
+                await create_views(VIEWS_SCRIPT_PATH, connection)
 
-        bot = Bot(token=settings.token)
-        dp = Dispatcher()
+    bot = Bot(token=settings.token)
+    dp = Dispatcher()
 
-        bot_admin_filter = BotAdminFilter(settings.bot_admin_ids)
-        chat_admin_filter = ChatAdminFilter(settings.bot_admin_ids)
+    bot_admin_filter = BotAdminFilter(settings.bot_admin_ids)
+    chat_admin_filter = ChatAdminFilter(settings.bot_admin_ids)
 
-        register_commands(dp, chat_admin_filter, bot_admin_filter)
-        register_callback_queries(dp, chat_admin_filter, bot_admin_filter)
+    register_commands(dp, chat_admin_filter, bot_admin_filter)
+    register_callback_queries(dp, chat_admin_filter, bot_admin_filter)
 
-        scheduler = AsyncIOScheduler(timezone=str(tzlocal.get_localzone()))
-        trigger = CronTrigger.from_crontab(settings.cron_schedule,
-                                           timezone=str(tzlocal.get_localzone()))
-        scheduler.add_job(update,
-                          args=(q, session_maker, settings, logger),
-                          trigger=trigger)
-        scheduler.start()
+    scheduler = AsyncIOScheduler(timezone=str(tzlocal.get_localzone()))
+    trigger = CronTrigger.from_crontab(settings.cron_schedule,
+                                       timezone=str(tzlocal.get_localzone()))
+    scheduler.add_job(update,
+                      args=(session_maker, settings, logger),
+                      trigger=trigger)
+    scheduler.start()
 
-        context = BotContext(logger, session_maker, settings, Storage())
-        tasks = [
-            dp.start_polling(bot, skip_updates=True, context=context),
-            send_worker(q, settings, bot, logger),
-        ]
-        await asyncio.gather(*tasks)
-
-    except asyncio.exceptions.CancelledError:
-        pass
-    finally:
-        if not q.empty():
-            logger.info('Save queue ...')
-            save_message_queue(settings.work_dir / QUEUE_FILE_PATH, q)
+    context = BotContext(logger, session_maker, settings, Storage())
+    tasks = [
+        dp.start_polling(bot, skip_updates=True, context=context),
+        send_worker(settings, bot, logger),
+    ]
+    await asyncio.gather(*tasks)
 
 
-async def update(q: Queue[MessageGroup],
-                 session_maker,
+async def update(session_maker,
                  settings: Settings,
                  logger: Logger):
+
     async with session_maker() as session:
         logger.info('Updating ...')
         tg_to_yt_channels, tg_yt_to_forwarding = await get_forwarding_data(session)
@@ -127,12 +113,14 @@ async def update(q: Queue[MessageGroup],
             logger.info(fmt_scan_data(new_data))
             logger.info('Make message groups ...')
             tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
-            groups = make_message_groups(tg_to_yt_videos, youtube_channels)
-            for group in groups:
-                await q.put(group)
-            if groups:
-                logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
 
+            groups = make_message_groups(tg_to_yt_videos, youtube_channels)
+            dumps = [pickle.dumps(group) for group in groups]
+
+            async with redis.asyncio.from_url(settings.redis_url) as redis_client:
+                await redis_client.rpush(settings.redis_queue, *dumps)
+
+            logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
             logger.info('Save new videos to database ...')
             try:
                 session.add_all(new_videos)
