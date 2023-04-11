@@ -122,7 +122,7 @@ async def get_yt_channels(tg_chat_id: int,
     if tag_ids:
         q = q.join(YouTubeChannelTag, YouTubeChannelTag.tag_id.in_(tag_ids)) \
             .where(YouTubeChannel.id == YouTubeChannelTag.channel_id) \
-            .group_by(YouTubeChannelTag.channel_id) \
+            .group_by(YouTubeChannel.id, YouTubeChannelTag.channel_id) \
             .having(count(distinct(YouTubeChannelTag.tag_id)) == len(tag_ids))
     else:
         q = q.order_by(desc('enabled'))
@@ -234,18 +234,18 @@ async def get_tags(offset: int | None,
     return [row[0] for row in rows]
 
 
-async def add_yt_channel_tag(tag_id: int, channel_id: str, session: AsyncSession):
+async def add_yt_channel_tag(tag_id: int, channel_id: int, session: AsyncSession):
     yt_tag = YouTubeChannelTag(tag_id=tag_id, channel_id=channel_id)
     await session.merge(yt_tag)
 
 
-async def delete_yt_channel_tag(tag_id: int, channel_id: str, session: AsyncSession):
+async def delete_yt_channel_tag(tag_id: int, channel_id: int, session: AsyncSession):
     q = delete(YouTubeChannelTag).where((YouTubeChannelTag.tag_id == tag_id) &
                                         (YouTubeChannelTag.channel_id == channel_id))
     await session.execute(q)
 
 
-async def get_yt_channel_tags(yt_channel_id: str,
+async def get_yt_channel_tags(yt_channel_id: int,
                               offset: int | None,
                               limit: int | None,
                               session: AsyncSession) -> list[tuple[YouTubeChannelTag, bool]]:

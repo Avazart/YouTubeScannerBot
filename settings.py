@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 VIEWS_SCRIPT_PATH = Path('views.sql')
-BACKUP_FILE_PATH = Path('backup.json')
+BACKUP_FILE_PATH = Path('../backup_debug.json')
 LOG_CONFIG_FILE_PATH_FMT = 'configs/log_config{}.json'
 MIN_MEMBER_COUNT = 10
 

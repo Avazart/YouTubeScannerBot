@@ -4,7 +4,6 @@ import pickle
 import random
 from datetime import datetime, timedelta
 from logging import Logger
-from pathlib import Path
 from typing import Sequence
 
 import aiohttp
@@ -13,20 +12,17 @@ import tzlocal
 from aiogram import Dispatcher, Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
-from backup_utils import import_data
 from bot_ui.bot_types import BotContext, Storage
 from bot_ui.callbacks import register_callback_queries
 from bot_ui.commands import register_commands
 from bot_ui.filers import ChatAdminFilter, BotAdminFilter
-from database.models import YouTubeChannel, YouTubeVideo, Base
+from database.models import YouTubeChannel, YouTubeVideo
 from database.utils import (
     get_forwarding_data,
     get_last_video_ids,
-    get_video_by_original_id,
-    create_views)
+    get_video_by_original_id)
 from format_utils import fmt_scan_data, fmt_groups, fmt_channel
 from message_utils import (
     get_tg_to_yt_videos,
@@ -36,7 +32,7 @@ from send_worker import send_worker
 from settings import (
     Settings,
     LAST_DAYS_IN_DB,
-    LAST_DAYS_ON_PAGE, VIEWS_SCRIPT_PATH, BACKUP_FILE_PATH
+    LAST_DAYS_ON_PAGE
 )
 from youtube_utils import get_channel_data, ScanData, YouTubeChannelData
 
@@ -44,22 +40,6 @@ from youtube_utils import get_channel_data, ScanData, YouTubeChannelData
 async def run(settings: Settings, logger: Logger):
     engine = create_async_engine(settings.database_url, echo=False)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
-
-    async with engine.begin() as connection:
-        exists_table_names = set(await connection.run_sync(
-            lambda c: inspect(c).get_table_names()
-        ))
-        model_table_names = set(Base.metadata.tables)
-        diff = model_table_names - exists_table_names
-        if len(diff) == len(model_table_names):
-            for table_name in diff:
-                logger.debug(f'Create table "{table_name}"')
-                table = Base.metadata.tables[table_name]
-                await connection.run_sync(table.create)
-            if BACKUP_FILE_PATH.exists():
-                await import_data(Path(BACKUP_FILE_PATH), session_maker)
-            if VIEWS_SCRIPT_PATH.exists():
-                await create_views(VIEWS_SCRIPT_PATH, connection)
 
     bot = Bot(token=settings.token)
     dp = Dispatcher()
@@ -89,7 +69,6 @@ async def run(settings: Settings, logger: Logger):
 async def update(session_maker,
                  settings: Settings,
                  logger: Logger):
-
     async with session_maker() as session:
         logger.info('Updating ...')
         tg_to_yt_channels, tg_yt_to_forwarding = await get_forwarding_data(session)

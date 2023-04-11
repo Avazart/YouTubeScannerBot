@@ -44,14 +44,13 @@ async def export_data(file_path: Path, session_maker):
 
 
 async def import_data(file_path: Path, session_maker):
-    async with session_maker.begin() as session:
-        with file_path.open('r') as file:
-            data = json.load(file)
-            for table_name, model in TABLES.items():
+    with file_path.open('r') as file:
+        data = json.load(file)
+        for table_name, model in TABLES.items():
+            async with session_maker.begin() as session:
                 rows = data[table_name]
-                for row in rows:
-                    record = model(**row)
-                    await session.merge(record)
+                records = [model(**row) for row in rows]
+                session.add_all(records)
 
 
 async def import_channels(file_path: Path, session_maker):

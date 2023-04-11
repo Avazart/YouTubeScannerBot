@@ -150,7 +150,7 @@ class AttachTagData(CallbackData, **dict(prefix='attach_tag')):
 
 class YtChannelTagData(CallbackData, **dict(prefix='yt_channel_tag')):
     tag_id: int
-    channel_id: str
+    channel_id: int
     enabled: bool
 
 

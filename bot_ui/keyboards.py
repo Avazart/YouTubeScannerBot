@@ -122,7 +122,7 @@ def _tags_keyboard(tags: list[Tag],
 # ATTACH TAGS
 
 def _attach_tags_buttons(tag_records: list[tuple[YouTubeChannelTag, bool]],
-                         yt_channel_id: str) -> list[list[InlineKeyboardButton]]:
+                         yt_channel_id: int) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for row in batched_evenly(tag_records, KEYBOARD_COLUMN_COUNT):
         row_buttons = []
@@ -136,7 +136,7 @@ def _attach_tags_buttons(tag_records: list[tuple[YouTubeChannelTag, bool]],
 
 
 def _attach_tags_keyboard(tag_records: list[tuple[YouTubeChannelTag, bool]],
-                          yt_channel_id: str,
+                          yt_channel_id: int,
                           prev_offset: int | None,
                           next_offset: int | None,
                           back_callback_data: str | None) -> InlineKeyboardMarkup:
@@ -242,7 +242,7 @@ async def build_telegram_tg_keyboard(offset: int,
     return keyboard
 
 
-async def build_attach_tags_keyboard(yt_channel_id,
+async def build_attach_tags_keyboard(yt_channel_id: int,
                                      offset: int,
                                      count: int,
                                      back_callback_data: str | None,
