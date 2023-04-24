@@ -1,0 +1,21 @@
+app_data/
+
+# Environments
+.env
+venv/
+
+# Python Cache
+__pycache__/
+
+# mypy
+.mypy_pycache/
+
+# pytest
+.pytest_pycache/
+
+# PyCharm
+.idea/
+
+# Git
+.git/
+.gitignore

@@ -21,14 +21,13 @@ from settings import (
 )
 
 
-def init_logging(workdir: Path, debug=False):
-    logs_path = workdir / 'logs'
-    logs_path.mkdir(parents=True, exist_ok=True)
+def init_logging(log_dir: Path, debug=False):
+    log_dir.mkdir(parents=True, exist_ok=True)
     log_config_path = LOG_CONFIG_FILE_PATH_FMT.format('_debug' if debug else '')
     with open(log_config_path) as file:
         config = json.load(file)
         file_handler = config['handlers']['FileHandler']
-        file_handler['filename'] = str(logs_path / 'log.txt')
+        file_handler['filename'] = str(log_dir / 'log.txt')
         dictConfig(config)
 
 
@@ -36,9 +35,7 @@ def init_logging(workdir: Path, debug=False):
 @click.pass_context
 def command_group(context):
     settings = dataclass_from_env(Settings)
-    if not settings.work_dir.exists():
-        settings.work_dir.mkdir()
-    init_logging(settings.work_dir, settings.debug)
+    init_logging(settings.log_dir, settings.debug)
     context.obj['logger'] = getLogger('main')
     context.obj['settings'] = settings
     if context.invoked_subcommand is None:

@@ -1,0 +1,39 @@
+services:
+    app:
+        build: .
+        container_name: scanner
+        command: python3 main.py
+        environment:
+            DEBUG: $DEBUG
+            WITHOUT_SENDING: $WITHOUT_SENDING
+            LOG_DIR: $LOG_DIR
+            DATABASE_URL: $DATABASE_URL
+            BOT_TOKEN: $BOT_TOKEN
+            BOT_ADMIN_IDS: $BOT_ADMIN_IDS
+            CRON_SCHEDULE: $CRON_SCHEDULE
+            SEND_DELAY: $SEND_DELAY
+            REDIS_URL: $REDIS_URL
+            REDIS_QUEUE: $REDIS_QUEUE
+            TZ: $TZ
+        volumes:
+            - ${APP_DATA}/logs:${LOG_DIR}
+        depends_on:
+            - redis
+            - database
+
+    redis:
+        container_name: redis
+        image: redis
+        command: redis-server --save "" --appendonly no
+
+    database:
+        container_name: postgres
+        image: postgres:14.1-alpine
+        environment:
+            POSTGRES_USER: $POSTGRES_USER
+            POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+            POSTGRES_DB: $POSTGRES_DB
+            POSTGRES_PORT: $POSTGRES_PORT
+        volumes:
+            - ${APP_DATA}/init_db:/docker-entrypoint-initdb.d/
+            - ${APP_DATA}/database_data:/var/lib/postgresql/data

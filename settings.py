@@ -1,8 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
-VIEWS_SCRIPT_PATH = Path('views.sql')
-BACKUP_FILE_PATH = Path('../backup_debug.json')
+import tzlocal
+
 LOG_CONFIG_FILE_PATH_FMT = 'configs/log_config{}.json'
 MIN_MEMBER_COUNT = 10
 
@@ -16,12 +16,16 @@ MAX_TAG_COUNT = 40
 MAX_TG_COUNT = 10
 
 
+def _local_tz():
+    return str(tzlocal.get_localzone())
+
+
 @dataclass(frozen=True)
 class Settings:
-    token: str
+    bot_token: str
     bot_admin_ids: frozenset[int]
 
-    work_dir: Path
+    log_dir: Path
     database_url: str
 
     redis_url: str
@@ -36,3 +40,4 @@ class Settings:
     error_delay: float = 65
     message_delay: float = 1
     attempt_count: int = 3
+    tz: str = field(default_factory=_local_tz)

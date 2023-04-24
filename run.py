@@ -2,6 +2,8 @@ import asyncio
 import itertools
 import pickle
 import random
+import subprocess
+import sys
 from datetime import datetime, timedelta
 from logging import Logger
 from typing import Sequence
@@ -12,8 +14,11 @@ import tzlocal
 from aiogram import Dispatcher, Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    AsyncSession,
+    async_sessionmaker
+)
 from bot_ui.bot_types import BotContext, Storage
 from bot_ui.callbacks import register_callback_queries
 from bot_ui.commands import register_commands
@@ -34,31 +39,50 @@ from settings import (
     LAST_DAYS_IN_DB,
     LAST_DAYS_ON_PAGE
 )
-from youtube_utils import get_channel_data, ScanData, YouTubeChannelData
+from youtube_utils import (
+    get_channel_data,
+    ScanData,
+    YouTubeChannelData
+)
+
+
+async def upgrade_database(logger: Logger, attempts=6, delay=10):
+    for i in range(attempts):
+        cmd = [sys.executable, '-m', 'alembic', 'upgrade', 'head']
+        r = subprocess.run(cmd, capture_output=True)
+        if r.returncode == 0:
+            return
+
+        logger.warning('Database is not ready!')
+        await asyncio.sleep(delay)
+    raise RuntimeError('Can`t upgrade database!')
 
 
 async def run(settings: Settings, logger: Logger):
     engine = create_async_engine(settings.database_url, echo=False)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-    bot = Bot(token=settings.token)
-    dp = Dispatcher()
+    logger.info('Upgrade database ...')
+    await upgrade_database(logger)
 
+    logger.info('Create bot instance ...')
+    bot = Bot(token=settings.bot_token)
+    dp = Dispatcher()
     bot_admin_filter = BotAdminFilter(settings.bot_admin_ids)
     chat_admin_filter = ChatAdminFilter(settings.bot_admin_ids)
-
     register_commands(dp, chat_admin_filter, bot_admin_filter)
     register_callback_queries(dp, chat_admin_filter, bot_admin_filter)
+    context = BotContext(logger, session_maker, settings, Storage())
 
-    scheduler = AsyncIOScheduler(timezone=str(tzlocal.get_localzone()))
+    logger.info('Create scheduler ...')
+    scheduler = AsyncIOScheduler(timezone=settings.tz)
     trigger = CronTrigger.from_crontab(settings.cron_schedule,
-                                       timezone=str(tzlocal.get_localzone()))
+                                       timezone=settings.tz)
     scheduler.add_job(update,
                       args=(session_maker, settings, logger),
                       trigger=trigger)
     scheduler.start()
 
-    context = BotContext(logger, session_maker, settings, Storage())
     tasks = [
         dp.start_polling(bot, skip_updates=True, context=context),
         send_worker(settings, bot, logger),
@@ -71,11 +95,13 @@ async def update(session_maker,
                  logger: Logger):
     async with session_maker() as session:
         logger.info('Updating ...')
+
         tg_to_yt_channels, tg_yt_to_forwarding = await get_forwarding_data(session)
         youtube_channels = list(
             set(itertools.chain.from_iterable(tg_to_yt_channels.values()))
         )
-        random.shuffle(youtube_channels)
+        if not settings.debug:
+            random.shuffle(youtube_channels)
         logger.info(f'Channel count {len(youtube_channels)}')
 
         logger.info('Scan youtube channels ...')
@@ -94,12 +120,12 @@ async def update(session_maker,
             tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
 
             groups = make_message_groups(tg_to_yt_videos, youtube_channels)
-            dumps = [pickle.dumps(group) for group in groups]
+            logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
 
+            dumps = [pickle.dumps(group) for group in groups]
             async with redis.asyncio.from_url(settings.redis_url) as redis_client:
                 await redis_client.rpush(settings.redis_queue, *dumps)
 
-            logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
             logger.info('Save new videos to database ...')
             try:
                 session.add_all(new_videos)
