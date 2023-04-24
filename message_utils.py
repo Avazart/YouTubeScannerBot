@@ -18,8 +18,10 @@ MessageGroups = list[MessageGroup]
 TgToYouTubeVideos = dict[Destination, list[YouTubeVideo]]
 
 
-def get_tg_to_yt_videos(scan_data: ScanData,
-                        tg_to_yt_channels: TgToYouTubeChannels) -> TgToYouTubeVideos:
+def get_tg_to_yt_videos(
+        scan_data: ScanData,
+        tg_to_yt_channels: TgToYouTubeChannels
+) -> TgToYouTubeVideos:
     tg_to_yt_videos = {}
     for tg, channels in tg_to_yt_channels.items():
         videos: list[YouTubeVideo] = []
@@ -29,8 +31,9 @@ def get_tg_to_yt_videos(scan_data: ScanData,
     return tg_to_yt_videos
 
 
-def make_message_groups(tg_to_yt_videos: TgToYouTubeVideos,
-                        youtube_channels: Iterable[YouTubeChannel]) -> MessageGroups:
+def make_message_groups(
+        tg_to_yt_videos: TgToYouTubeVideos,
+        youtube_channels: Iterable[YouTubeChannel]) -> MessageGroups:
     yt_channel_ids = {c.id: c for c in youtube_channels}
     groups: MessageGroups = []
     values = tg_to_yt_videos.values()

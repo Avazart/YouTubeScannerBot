@@ -133,7 +133,9 @@ def _parse_tuple(value: str,
     return target_type(elements)
 
 
-def _parse_items(s: str, config: ParseConfig) -> Generator[list[str], None, None]:
+def _parse_items(s: str,
+                 config: ParseConfig) \
+        -> Generator[list[str], None, None]:
     parts = _split_str(s,
                        config.el_sep,
                        config.strip,

@@ -86,7 +86,10 @@ class ByKey:
     def __init__(self, key: str):
         self._key = key
 
-    def __call__(self, path: list, ki: str | int, value: Any) -> tuple[bool, Any]:
+    def __call__(self,
+                 path: list,
+                 ki: str | int,
+                 value: Any) -> tuple[bool, Any]:
         if (type(ki) is not int) and ki == self._key:
             return True, value
         return False, None  # found, result_value

@@ -8,7 +8,15 @@ from dateutil.relativedelta import relativedelta
 from . import search
 
 DATA_PATTERN = re.compile(r'\s*var\s+ytInitialData\s*=\s*')
-MEASUREMENT_NAMES = frozenset(('second', 'minute', 'hour', 'day', 'week', 'month', 'year'))
+MEASUREMENT_NAMES = frozenset((
+    'second',
+    'minute',
+    'hour',
+    'day',
+    'week',
+    'month',
+    'year'
+))
 
 
 class YoutubeParserError(Exception):
@@ -41,10 +49,20 @@ def _parse_init_data(content: str) -> str:
 
 def _parse_renderer(video_renderer: dict) -> dict:
     video_id = search.find_first(video_renderer, search.ByKey('videoId'))
-    title = search.find_first(video_renderer, search.BySubPath('title', 'runs', 0, 'text'))
-    style = search.find_first(video_renderer,
-                              search.BySubPath('thumbnailOverlayTimeStatusRenderer', 'style'))
-    time_ago = search.get(video_renderer, 'publishedTimeText', 'simpleText', default=None)
+    title = search.find_first(
+        video_renderer,
+        search.BySubPath('title', 'runs', 0, 'text')
+    )
+    style = search.find_first(
+        video_renderer,
+        search.BySubPath('thumbnailOverlayTimeStatusRenderer', 'style')
+    )
+    time_ago = search.get(
+        video_renderer,
+        'publishedTimeText',
+        'simpleText',
+        default=None
+    )
     return dict(id=video_id, title=title, style=style, time_ago=time_ago)
 
 
@@ -57,12 +75,16 @@ def _has_no_video(content_0: dict) -> bool:
 
 def _parse_section_list_renderer(renderer: dict) -> list[dict]:
     videos = []
-    content_0 = search.find_first(renderer,
-                                  search.BySubPath('itemSectionRenderer', 'contents', 0))
+    content_0 = search.find_first(
+        renderer,
+        search.BySubPath('itemSectionRenderer', 'contents', 0)
+    )
     items = []
     try:
-        items = search.find_first(content_0,
-                                  search.BySubPath('gridRenderer', 'items'))
+        items = search.find_first(
+            content_0,
+            search.BySubPath('gridRenderer', 'items')
+        )
     except search.SearchError as e:
         if not _has_no_video(content_0):
             raise e
@@ -78,8 +100,10 @@ def _parse_rich_grid_renderer(renderer: dict) -> list[dict]:
     items = search.find_first(renderer, search.ByKey('contents'))
     for i, item in enumerate(items):
         if item_renderer := item.get('richItemRenderer'):
-            video_renderer = search.find_first(item_renderer,
-                                               search.BySubPath('content', 'videoRenderer'))
+            video_renderer = search.find_first(
+                item_renderer,
+                search.BySubPath('content', 'videoRenderer')
+            )
             videos.append(_parse_renderer(video_renderer))
     return videos
 
@@ -87,7 +111,10 @@ def _parse_rich_grid_renderer(renderer: dict) -> list[dict]:
 def _parse_object(obj_content: str) -> list[dict]:
     videos = []
     obj = json.loads(obj_content)
-    content = search.find_first(obj, search.BySubPath('tabRenderer', 'content'))
+    content = search.find_first(
+        obj,
+        search.BySubPath('tabRenderer', 'content')
+    )
     if renderer := content.get('sectionListRenderer'):
         videos.extend(_parse_section_list_renderer(renderer))
     elif renderer := content.get('richGridRenderer'):
@@ -103,10 +130,13 @@ def parse_tab_urls(obj_content: str) -> list[str]:
     tabs = search.find_first(obj, search.ByKey("tabs"))
     tab_renders = search.find_all(tabs, search.BySubPath('tabRenderer'))
     for tab_render in tab_renders:
-        url = search.find_first(tab_render, search.BySubPath("endpoint",
-                                                             "commandMetadata",
-                                                             "webCommandMetadata",
-                                                             "url"))
+        url = search.find_first(
+            tab_render,
+            search.BySubPath("endpoint",
+                             "commandMetadata",
+                             "webCommandMetadata",
+                             "url")
+        )
         urls.append(url)
     return urls
 
@@ -114,7 +144,9 @@ def parse_tab_urls(obj_content: str) -> list[str]:
 def parse_channel(content: str) -> dict:
     soup = bs4.BeautifulSoup(content, 'lxml')
     script_els = soup.find_all('script')
-    script_with_data_els = list(filter(lambda el: DATA_PATTERN.search(el.text), script_els))
+    script_with_data_els = list(filter(
+        lambda el: DATA_PATTERN.search(el.text), script_els
+    ))
     if len(script_with_data_els) == 0:
         raise YoutubeParserError('"ytInitialData" not found!')
     obj_content = _parse_init_data(script_with_data_els[0].text)
@@ -126,7 +158,9 @@ def parse_channel(content: str) -> dict:
 def parse_channel_info(content: str) -> dict:
     soup = bs4.BeautifulSoup(content, 'lxml')
     script_els = soup.find_all('script')
-    script_with_data_els = list(filter(lambda el: 'ytInitialData' in el.text, script_els))
+    script_with_data_els = list(filter(
+        lambda el: 'ytInitialData' in el.text, script_els
+    ))
     if len(script_with_data_els) == 0:
         raise YoutubeParserError('"ytInitialData" not found!')
     obj_content = _parse_init_data(script_with_data_els[0].text)
@@ -155,5 +189,7 @@ def parse_time_age(text: str) -> relativedelta:
         if measurement in MEASUREMENT_NAMES:
             return relativedelta(**{measurement + 's': value})
         else:
-            raise RuntimeError(f'Measurement "{measurement}" is not supported!')
+            raise RuntimeError(
+                f'Measurement "{measurement}" is not supported!'
+            )
     raise RuntimeError(f'Time "{text}" format is not supported!')

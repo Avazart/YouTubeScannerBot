@@ -67,12 +67,16 @@ async def show_tag_filter_keyboard(query: CallbackQuery, context: BotContext):
         data.back_callback_data = NavigationData(keyboard=Keyboard.MAIN).pack()
         data.tags_offset = 0
         async with context.session_maker.begin() as session:
-            keyboard = await build_tag_filter_keyboard(data.tags_offset,
-                                                       MAX_TAG_COUNT,
-                                                       data.tags_ids,
-                                                       data.back_callback_data,
-                                                       session)
-            await query.message.edit_text("Select tags for filter youtube channels:")
+            keyboard = await build_tag_filter_keyboard(
+                data.tags_offset,
+                MAX_TAG_COUNT,
+                data.tags_ids,
+                data.back_callback_data,
+                session
+            )
+            await query.message.edit_text(
+                "Select tags for filter youtube channels:"
+            )
             await query.message.edit_reply_markup(reply_markup=keyboard)
             await context.storage.set_data(key, data)
 
@@ -86,10 +90,12 @@ async def show_tg_keyboard(query: CallbackQuery, context: BotContext):
         data.back_callback_data = NavigationData(keyboard=Keyboard.MAIN).pack()
         data.tgs_offset = 0
         async with context.session_maker.begin() as session:
-            keyboard = await build_telegram_tg_keyboard(data.tgs_offset,
-                                                        MAX_TG_COUNT,
-                                                        data.back_callback_data,
-                                                        session)
+            keyboard = await build_telegram_tg_keyboard(
+                data.tgs_offset,
+                MAX_TG_COUNT,
+                data.back_callback_data,
+                session
+            )
             await query.message.edit_text('Telegram chats and threads:')
             await query.message.edit_reply_markup(reply_markup=keyboard)
             await context.storage.set_data(key, data)
@@ -101,18 +107,21 @@ async def show_channels_keyboard(query: CallbackQuery, context: BotContext):
 
     key = StorageKey.from_callback_query(query)
     if data := await context.storage.get_data(key):
-        data.back_callback_data = NavigationData(keyboard=Keyboard.TAG_FILTER).pack()
+        data.back_callback_data = \
+            NavigationData(keyboard=Keyboard.TAG_FILTER).pack()
         data.yt_channels_offset = 0
         async with context.session_maker.begin() as session:
             assert data.original_chat_id  # FIXME
-            keyboard = await build_channel_keyboard(data.original_chat_id,
-                                                    data.original_thread_id,
-                                                    key.user_id in context.settings.bot_admin_ids,
-                                                    data.yt_channels_offset,
-                                                    MAX_YT_CHANNEL_COUNT,
-                                                    data.tags_ids,
-                                                    data.back_callback_data,
-                                                    session)
+            keyboard = await build_channel_keyboard(
+                data.original_chat_id,
+                data.original_thread_id,
+                key.user_id in context.settings.bot_admin_ids,
+                data.yt_channels_offset,
+                MAX_YT_CHANNEL_COUNT,
+                data.tags_ids,
+                data.back_callback_data,
+                session
+            )
             await query.message.edit_text("YouTube channels:")
             await query.message.edit_reply_markup(reply_markup=keyboard)
             await context.storage.set_data(key, data)
@@ -128,15 +137,19 @@ async def yt_channels_in_tg_pressed(query: CallbackQuery,
     if data := await context.storage.get_data(key):
         data.original_chat_id = callback_data.chat_id
         data.original_thread_id = callback_data.thread_id
-        data.back_callback_data = NavigationData(keyboard=Keyboard.TG_OBJECTS).pack()
+        data.back_callback_data = \
+            NavigationData(keyboard=Keyboard.TG_OBJECTS).pack()
         async with context.session_maker.begin() as session:
-            keyboard = await build_tag_filter_keyboard(data.tags_offset,
-                                                       MAX_TAG_COUNT,
-                                                       data.tags_ids,
-                                                       data.back_callback_data,
-                                                       session)
+            keyboard = await build_tag_filter_keyboard(
+                data.tags_offset,
+                MAX_TAG_COUNT,
+                data.tags_ids,
+                data.back_callback_data,
+                session
+            )
             assert query.message
-            await query.message.edit_text("YouTube channels:")  # TODO: For telegram
+            await query.message.edit_text("YouTube channels:")
+            # TODO: For telegram
             await query.message.edit_reply_markup(reply_markup=keyboard)
         await context.storage.set_data(key, data)
 
@@ -165,14 +178,16 @@ async def channel_checked(query: CallbackQuery,
                                             tg.get_thread_id(),
                                             session)
                 # async with context.SessionMaker.begin() as session:
-                keyboard = await build_channel_keyboard(tg.chat.original_id,
-                                                        tg.get_thread_original_id(),
-                                                        key.user_id in context.settings.bot_admin_ids,
-                                                        data.yt_channels_offset,
-                                                        MAX_YT_CHANNEL_COUNT,
-                                                        data.tags_ids,
-                                                        data.back_callback_data,
-                                                        session)
+                keyboard = await build_channel_keyboard(
+                    tg.chat.original_id,
+                    tg.get_thread_original_id(),
+                    key.user_id in context.settings.bot_admin_ids,
+                    data.yt_channels_offset,
+                    MAX_YT_CHANNEL_COUNT,
+                    data.tags_ids,
+                    data.back_callback_data,
+                    session
+                )
                 assert query.message
                 await query.message.edit_reply_markup(reply_markup=keyboard)
             await context.storage.set_data(key, data)
@@ -201,7 +216,9 @@ async def close_keyboard(query: CallbackQuery):
         await query.message.delete()
 
 
-async def back_to_main_keyboard(query: CallbackQuery, bot: Bot, context: BotContext):
+async def back_to_main_keyboard(query: CallbackQuery,
+                                bot: Bot,
+                                context: BotContext):
     if query.message:
         key = StorageKey.from_callback_query(query)
         await show_main_keyboard(key, query.message, bot, context)
@@ -215,17 +232,23 @@ async def attach_tags_callback(query: CallbackQuery,
 
     key = StorageKey.from_callback_query(query)
     if data := await context.storage.get_data(key):
-        data.back_callback_data = NavigationData(keyboard=Keyboard.YT_CHANNELS).pack()
+        data.back_callback_data = \
+            NavigationData(keyboard=Keyboard.YT_CHANNELS).pack()
         data.tags_offset = 0
         data.channel_id = callback_data.channel_id
         async with context.session_maker.begin() as session:
-            if channel := await get_yt_channel_by_id(callback_data.channel_id, session):
-                keyboard = await build_attach_tags_keyboard(data.channel_id,
-                                                            data.tags_offset,
-                                                            MAX_TAG_COUNT,
-                                                            data.back_callback_data,
-                                                            session)
-                await query.message.edit_text(f'Select tag for "{channel.title}"')
+            if channel := await get_yt_channel_by_id(callback_data.channel_id,
+                                                     session):
+                keyboard = await build_attach_tags_keyboard(
+                    data.channel_id,
+                    data.tags_offset,
+                    MAX_TAG_COUNT,
+                    data.back_callback_data,
+                    session
+                )
+                await query.message.edit_text(
+                    f'Select tag for "{channel.title}"'
+                )
                 await query.message.edit_reply_markup(reply_markup=keyboard)
                 await context.storage.set_data(key, data)
 
@@ -240,15 +263,24 @@ async def yt_channel_tag_button_pressed(query: CallbackQuery,
     if data := await context.storage.get_data(key):
         async with context.session_maker.begin() as session:
             if callback_data.enabled:
-                await delete_yt_channel_tag(callback_data.tag_id, callback_data.channel_id, session)
+                await delete_yt_channel_tag(
+                    callback_data.tag_id,
+                    callback_data.channel_id,
+                    session
+                )
             else:
-                await add_yt_channel_tag(callback_data.tag_id, callback_data.channel_id, session)
-
-            keyboard = await build_attach_tags_keyboard(callback_data.channel_id,
-                                                        data.tags_offset,
-                                                        MAX_TAG_COUNT,
-                                                        data.back_callback_data,
-                                                        session)
+                await add_yt_channel_tag(
+                    callback_data.tag_id,
+                    callback_data.channel_id,
+                    session
+                )
+            keyboard = await build_attach_tags_keyboard(
+                callback_data.channel_id,
+                data.tags_offset,
+                MAX_TAG_COUNT,
+                data.back_callback_data,
+                session
+            )
             await query.message.edit_reply_markup(reply_markup=keyboard)
 
 
@@ -264,10 +296,12 @@ async def status_button_pressed(query: CallbackQuery,
             await set_telegram_chat_status(callback_data.chat_id,
                                            callback_data.status,
                                            session)
-            keyboard = await build_telegram_tg_keyboard(data.tgs_offset,
-                                                        MAX_TG_COUNT,
-                                                        data.back_callback_data,
-                                                        session)
+            keyboard = await build_telegram_tg_keyboard(
+                data.tgs_offset,
+                MAX_TG_COUNT,
+                data.back_callback_data,
+                session
+            )
             await query.message.edit_reply_markup(reply_markup=keyboard)
 
 
@@ -280,35 +314,43 @@ async def nav_button_pressed(query: CallbackQuery,
             match callback_data.keyboard:
                 case Keyboard.TAG_FILTER:
                     data.tags_offset = callback_data.offset
-                    keyboard = await build_tag_filter_keyboard(data.tags_offset,
-                                                               MAX_TAG_COUNT,
-                                                               data.tags_ids,
-                                                               data.back_callback_data,
-                                                               session)
+                    keyboard = await build_tag_filter_keyboard(
+                        data.tags_offset,
+                        MAX_TAG_COUNT,
+                        data.tags_ids,
+                        data.back_callback_data,
+                        session
+                    )
                 case Keyboard.TG_OBJECTS:
                     data.tgs_offset = callback_data.offset
-                    keyboard = await build_telegram_tg_keyboard(data.tgs_offset,
-                                                                MAX_TG_COUNT,
-                                                                data.back_callback_data,
-                                                                session)
+                    keyboard = await build_telegram_tg_keyboard(
+                        data.tgs_offset,
+                        MAX_TG_COUNT,
+                        data.back_callback_data,
+                        session
+                    )
                 case Keyboard.YT_CHANNELS:
                     data.yt_channels_offset = callback_data.offset
                     assert data.original_chat_id is not None  # FIXME
-                    keyboard = await build_channel_keyboard(data.original_chat_id,
-                                                            data.original_thread_id,
-                                                            key.user_id in context.settings.bot_admin_ids,
-                                                            data.yt_channels_offset,
-                                                            MAX_YT_CHANNEL_COUNT,
-                                                            data.tags_ids,
-                                                            data.back_callback_data,
-                                                            session)
+                    keyboard = await build_channel_keyboard(
+                        data.original_chat_id,
+                        data.original_thread_id,
+                        key.user_id in context.settings.bot_admin_ids,
+                        data.yt_channels_offset,
+                        MAX_YT_CHANNEL_COUNT,
+                        data.tags_ids,
+                        data.back_callback_data,
+                        session
+                    )
                 case Keyboard.ATTACH_TAGS:
                     data.tags_offset = callback_data.offset
-                    keyboard = await build_attach_tags_keyboard(data.channel_id,
-                                                                data.tags_offset,
-                                                                MAX_TAG_COUNT,
-                                                                data.back_callback_data,
-                                                                session)
+                    keyboard = await build_attach_tags_keyboard(
+                        data.channel_id,
+                        data.tags_offset,
+                        MAX_TAG_COUNT,
+                        data.back_callback_data,
+                        session
+                    )
             assert query.message
             await query.message.edit_reply_markup(reply_markup=keyboard)
         await context.storage.set_data(key, data)
@@ -319,21 +361,29 @@ def register_callback_queries(dp: Dispatcher,
                               chat_admin_filter: ChatAdminFilter,
                               bot_admin_filter: BotAdminFilter):
     callback_queries = (
-        (back_to_main_keyboard,
-         chat_admin_filter,
-         NavigationData.filter(F.keyboard == Keyboard.MAIN)),
+        (
+            back_to_main_keyboard,
+            chat_admin_filter,
+            NavigationData.filter(F.keyboard == Keyboard.MAIN)
+        ),
 
-        (show_tag_filter_keyboard,
-         chat_admin_filter,
-         NavigationData.filter(F.keyboard == Keyboard.TAG_FILTER)),
+        (
+            show_tag_filter_keyboard,
+            chat_admin_filter,
+            NavigationData.filter(F.keyboard == Keyboard.TAG_FILTER)
+        ),
 
-        (show_channels_keyboard,
-         chat_admin_filter,
-         NavigationData.filter(F.keyboard == Keyboard.YT_CHANNELS)),
+        (
+            show_channels_keyboard,
+            chat_admin_filter,
+            NavigationData.filter(F.keyboard == Keyboard.YT_CHANNELS)
+        ),
 
-        (show_tg_keyboard,
-         chat_admin_filter,
-         NavigationData.filter(F.keyboard == Keyboard.TG_OBJECTS)),
+        (
+            show_tg_keyboard,
+            chat_admin_filter,
+            NavigationData.filter(F.keyboard == Keyboard.TG_OBJECTS)
+        ),
 
         (close_keyboard, chat_admin_filter, CloseData.filter()),
 
@@ -344,7 +394,11 @@ def register_callback_queries(dp: Dispatcher,
 
         # bot admin
         (attach_tags_callback, bot_admin_filter, AttachTagData.filter()),
-        (yt_channel_tag_button_pressed, bot_admin_filter, YtChannelTagData.filter()),
+        (
+            yt_channel_tag_button_pressed,
+            bot_admin_filter,
+            YtChannelTagData.filter()
+        ),
         (status_button_pressed, bot_admin_filter, StatusData.filter()),
     )
     for callback_query in callback_queries:

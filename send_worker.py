@@ -17,10 +17,12 @@ async def try_send_message(m: message_utils.ScannerMessage,
                            logger: Logger):
     for i in range(settings.attempt_count):
         try:
-            await bot.send_message(chat_id=m.destination.chat.original_id,
-                                   text=fmt_message(m),
-                                   message_thread_id=m.destination.get_thread_original_id(),
-                                   parse_mode='HTML')
+            await bot.send_message(
+                chat_id=m.destination.chat.original_id,
+                text=fmt_message(m),
+                message_thread_id=m.destination.get_thread_original_id(),
+                parse_mode='HTML'
+            )
             await asyncio.sleep(settings.message_delay)
             return
         except TelegramRetryAfter as e:
@@ -45,13 +47,16 @@ async def send_worker(settings: Settings,
                     if not settings.without_sending:
                         await try_send_message(m, settings, bot, logger)
                 except TelegramNetworkError as e:
-                    logger.error(f'Send error:\n'
-                                 f'{fmt_pair(m.youtube_video, m.destination)}\n'
-                                 f'{e} {type(e)}')
+                    logger.error(
+                        'Send error:\n'
+                        f'{fmt_pair(m.youtube_video, m.destination)}\n'
+                        f'{e} {type(e)}'
+                    )
                     failed.append(m)
                     await asyncio.sleep(settings.error_delay)
                 except Exception as e:
-                    # TODO aiogram.exceptions.TelegramBadRequest: Bad Request: chat not found
+                    # TODO aiogram.exceptions.TelegramBadRequest:
+                    #  Bad Request: chat not found
                     logger.exception(e)
 
             if failed:

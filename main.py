@@ -12,13 +12,13 @@ from env_utils import dataclass_from_env
 from run import run
 from settings import (
     Settings,
-    LOG_CONFIG_FILE_PATH_FMT
+    LOG_CONF_FMT
 )
 
 
 def init_logging(log_dir: Path, debug=False):
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_config_path = LOG_CONFIG_FILE_PATH_FMT.format('_debug' if debug else '')
+    log_config_path = LOG_CONF_FMT.format('_debug' if debug else '')
     with open(log_config_path) as file:
         config = json.load(file)
         file_handler = config['handlers']['FileHandler']

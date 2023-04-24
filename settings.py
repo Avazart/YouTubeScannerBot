@@ -3,7 +3,7 @@ from pathlib import Path
 
 import tzlocal
 
-LOG_CONFIG_FILE_PATH_FMT = 'configs/log_config{}.json'
+LOG_CONF_FMT = 'configs/log_config{}.json'
 MIN_MEMBER_COUNT = 10
 
 LAST_DAYS_ON_PAGE = 2

@@ -28,7 +28,7 @@ def fmt_videos(videos: Iterable[YouTubeVideo], indent: str = '') -> str:
 def fmt_tg(tg: Destination) -> str:
     title = tg.chat.title or tg.chat.first_name
     if tg.thread and tg.thread.title:
-        title += '/'+tg.thread.title
+        title += '/' + tg.thread.title
 
     text = shorten(title, MAX_TITLE_WIDTH, placeholder=PLACEHOLDER)
     return f'"{text}" {tg.url}'
@@ -46,7 +46,7 @@ def fmt_scan_data(data: ScanData):
 def fmt_pair(video: YouTubeVideo, tg: Destination) -> str:
     title = tg.chat.title or tg.chat.first_name
     if tg.thread and tg.thread.title:
-        title += '/'+tg.thread.title
+        title += '/' + tg.thread.title
     return f'{video.title} ==> {title}'
 
 
@@ -62,7 +62,10 @@ def fmt_groups(groups: MessageGroups, indent: str = '') -> str:
 
 
 def fmt_message(m: ScannerMessage) -> str:
-    return (f'<b>{m.youtube_channel_title}</b>\n'
-            f'{m.youtube_video.title}\n'
-            f'<i>{m.youtube_video.time_ago if m.youtube_video.time_ago else ""}</i>\n'
-            f'{m.youtube_video.url}')
+    time_str = m.youtube_video.time_ago if m.youtube_video.time_ago else ""
+    return (
+        f'<b>{m.youtube_channel_title}</b>\n'
+        f'{m.youtube_video.title}\n'
+        f'<i>{time_str}</i>\n'
+        f'{m.youtube_video.url}'
+    )

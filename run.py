@@ -9,10 +9,11 @@ from logging import Logger
 from typing import Sequence
 
 import aiohttp
-import redis.asyncio
+
 from aiogram import Dispatcher, Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from redis.asyncio import from_url
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     AsyncSession,
@@ -96,7 +97,8 @@ async def update(session_maker,
     async with session_maker() as session:
         logger.info('Updating ...')
 
-        tg_to_yt_channels, tg_yt_to_forwarding = await get_forwarding_data(session)
+        tg_to_yt_channels, tg_yt_to_forwarding = \
+            await get_forwarding_data(session)
         youtube_channels = list(
             set(itertools.chain.from_iterable(tg_to_yt_channels.values()))
         )
@@ -111,8 +113,9 @@ async def update(session_maker,
 
         logger.info('Search new videos ...')
         new_data = await get_new_data(scan_data, session, logger)
-        new_videos = frozenset(itertools.chain.from_iterable(list(new_data.values())))
-
+        new_videos = frozenset(
+            itertools.chain.from_iterable(list(new_data.values()))
+        )
         logger.info(f'New videos: {len(new_videos)}')
         if new_videos:
             logger.info(fmt_scan_data(new_data))
@@ -123,7 +126,7 @@ async def update(session_maker,
             logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
 
             dumps = [pickle.dumps(group) for group in groups]
-            async with redis.asyncio.from_url(settings.redis_url) as redis_client:
+            async with from_url(settings.redis_url) as redis_client:
                 await redis_client.rpush(settings.redis_queue, *dumps)
 
             logger.info('Save new videos to database ...')
@@ -182,17 +185,22 @@ async def get_new_data(scan_data: ScanData,
             streams = filter_by_time(data.streams)
             for stream in streams:
                 if stream.original_id not in last_video_ids:
-                    if exist_stream := await get_video_by_original_id(stream.original_id,
-                                                                      session):
+                    if exist_stream := await get_video_by_original_id(
+                            stream.original_id,
+                            session
+                    ):
                         if 'LIVE' in (stream.style, exist_stream.style):
                             exist_stream.style = 'LIVE'
                             exist_stream.live_24_7 = True
                             await session.merge(exist_stream)
                         else:
-                            logger.warning(f"Conflict {stream=} and {exist_stream=}")
+                            logger.warning(f"Conflict {stream=} "
+                                           f"and {exist_stream=}")
                     else:
                         new_streams.append(stream)
 
-            new_data[channel] = YouTubeChannelData(videos=new_videos,
-                                                   streams=new_streams)
+            new_data[channel] = YouTubeChannelData(
+                videos=new_videos,
+                streams=new_streams
+            )
     return new_data

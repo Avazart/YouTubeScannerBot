@@ -6,7 +6,14 @@ import sqlalchemy
 from sqlalchemy import Result, true
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncConnection
 from sqlalchemy.sql import Select
-from sqlalchemy.sql.expression import select, exists, delete, distinct, update, desc
+from sqlalchemy.sql.expression import (
+    select,
+    exists,
+    delete,
+    distinct,
+    update,
+    desc
+)
 from sqlalchemy.sql.functions import count
 
 from bot_ui.bot_types import Status
@@ -22,7 +29,8 @@ from database.models import (
 )
 
 TgToYouTubeChannels: TypeAlias = dict[Destination, list[YouTubeChannel]]
-TgYtToForwarding: TypeAlias = dict[tuple[Destination, YouTubeChannel], Forwarding]
+TgYtToForwarding: TypeAlias = dict[tuple[Destination, YouTubeChannel],
+                                   Forwarding]
 ForwardingData: TypeAlias = tuple[TgToYouTubeChannels, TgYtToForwarding]
 
 
@@ -67,7 +75,6 @@ async def delete_forwarding(youtube_channel_id: int,
         .where((Forwarding.youtube_channel_id == youtube_channel_id) &
                (Forwarding.telegram_chat_id == telegram_chat_id) &
                (Forwarding.telegram_thread_id == telegram_thread_id))
-
     await session.execute(q)
 
 
@@ -107,17 +114,21 @@ async def get_yt_channels(tg_chat_id: int,
                           tag_ids: set[int],
                           offset: int | None,
                           limit: int | None,
-                          session: AsyncSession) -> list[tuple[YouTubeChannel, bool]]:
-    q = select(YouTubeChannel,
-               exists(select(Forwarding)
-                      .join(TelegramThread,
-                            TelegramThread.id == Forwarding.telegram_thread_id,
-                            isouter=True)
-                      .where((Forwarding.telegram_chat_id == tg_chat_id) &
-                             (TelegramThread.original_id == tg_thread_id) &
-                             (Forwarding.youtube_channel_id == YouTubeChannel.id))
-                      ).label("enabled")
-               )
+                          session: AsyncSession) \
+        -> list[tuple[YouTubeChannel, bool]]:
+    q = select(
+        YouTubeChannel,
+        exists(
+            select(Forwarding).join(
+                TelegramThread,
+                TelegramThread.id == Forwarding.telegram_thread_id,
+                isouter=True
+            ).where(
+                (Forwarding.telegram_chat_id == tg_chat_id) &
+                (TelegramThread.original_id == tg_thread_id) &
+                (Forwarding.youtube_channel_id == YouTubeChannel.id))
+        ).label("enabled")
+    )
 
     if tag_ids:
         q = q.join(YouTubeChannelTag, YouTubeChannelTag.tag_id.in_(tag_ids)) \
@@ -154,7 +165,8 @@ async def get_last_video_ids(channel_id: int,
 
 
 async def get_video_by_original_id(original_id: str,
-                                   session: AsyncSession) -> YouTubeVideo | None:
+                                   session: AsyncSession) \
+        -> YouTubeVideo | None:
     q = select(YouTubeVideo).where(YouTubeVideo.original_id == original_id)
     result: Result = await session.execute(q)
     if rows := result.fetchone():
@@ -234,21 +246,28 @@ async def get_tags(offset: int | None,
     return [row[0] for row in rows]
 
 
-async def add_yt_channel_tag(tag_id: int, channel_id: int, session: AsyncSession):
-    yt_tag = YouTubeChannelTag(tag_id=tag_id, channel_id=channel_id)
+async def add_yt_channel_tag(tag_id: int,
+                             channel_id: int,
+                             session: AsyncSession):
+    yt_tag = YouTubeChannelTag(tag_id=tag_id,
+                               channel_id=channel_id)
     await session.merge(yt_tag)
 
 
-async def delete_yt_channel_tag(tag_id: int, channel_id: int, session: AsyncSession):
-    q = delete(YouTubeChannelTag).where((YouTubeChannelTag.tag_id == tag_id) &
-                                        (YouTubeChannelTag.channel_id == channel_id))
+async def delete_yt_channel_tag(tag_id: int,
+                                channel_id: int,
+                                session: AsyncSession):
+    q = delete(YouTubeChannelTag) \
+        .where((YouTubeChannelTag.tag_id == tag_id) &
+               (YouTubeChannelTag.channel_id == channel_id))
     await session.execute(q)
 
 
 async def get_yt_channel_tags(yt_channel_id: int,
                               offset: int | None,
                               limit: int | None,
-                              session: AsyncSession) -> list[tuple[YouTubeChannelTag, bool]]:
+                              session: AsyncSession) \
+        -> list[tuple[YouTubeChannelTag, bool]]:
     q = select(Tag,
                exists(select(YouTubeChannelTag).where(
                    (YouTubeChannelTag.channel_id == yt_channel_id) &
@@ -285,30 +304,3 @@ async def create_views(file_path: Path,
     text = file_path.read_text('utf-8')
     for statement in text.split(';'):
         await connection.execute(sqlalchemy.text(statement))
-
-
-async def test():
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-
-    engine = create_async_engine("sqlite+aiosqlite:///../../user_data_debug/database.sqlite",
-                                 echo=False)
-    session_maker = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    async with session_maker() as session:
-        stmt = select(TelegramChat, TelegramThread,
-                      YouTubeChannel, Forwarding) \
-            .join(YouTubeChannel) \
-            .join(TelegramChat) \
-            .join(TelegramThread,
-                  TelegramThread.id == Forwarding.telegram_thread_id,
-                  isouter=True) \
-            .where(TelegramChat.status == int(Status.ON)) \
-            .order_by(Forwarding.youtube_channel_id)
-        result = await session.execute(stmt)
-        for row in result.scalars():
-            print(row)
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(test())

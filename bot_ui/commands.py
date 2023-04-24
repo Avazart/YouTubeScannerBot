@@ -34,7 +34,9 @@ async def start_command(message: Message):
 async def menu_command(message: Message, bot: Bot, context: BotContext):
     async with context.session_maker.begin() as session:
         thread_original_id = get_thread_id(message)
-        if tg := await get_destinations(message.chat.id, thread_original_id, session):
+        if tg := await get_destinations(message.chat.id,
+                                        thread_original_id,
+                                        session):
             chat = tg.chat
             if chat.status == Status.BAN:
                 return
@@ -44,11 +46,18 @@ async def menu_command(message: Message, bot: Bot, context: BotContext):
         await session.merge(chat)
 
         if thread_original_id is not None:
-            thread = TelegramThread(id=tg.get_thread_id() if tg else None,
-                                    original_id=thread_original_id,
-                                    original_chat_id=message.chat.id)
+            thread = TelegramThread(
+                id=tg.get_thread_id() if tg else None,
+                original_id=thread_original_id,
+                original_chat_id=message.chat.id
+            )
             await session.merge(thread)
-    await show_main_keyboard(StorageKey.from_message(message), message, bot, context)
+    await show_main_keyboard(
+        StorageKey.from_message(message),
+        message,
+        bot,
+        context
+    )
 
 
 async def add_channel_command(message: Message,
@@ -57,7 +66,8 @@ async def add_channel_command(message: Message,
                               context: BotContext):
     """
         This command works only for chat admins and admins of the bot.
-        In group chats, this command only works if the group has more than 10 members.
+        In group chats, this command only works if
+        the group has more than 10 members.
         In private chats, this command is only available to admins of the bot.
     """
 
@@ -71,7 +81,9 @@ async def add_channel_command(message: Message,
     elif await bot.get_chat_member_count(message.chat.id) < MIN_MEMBER_COUNT:
         return
 
-    if args := command.args and split_string(command.args, sep=' ', max_split=1):
+    if args := command.args and split_string(command.args,
+                                             sep=' ',
+                                             max_split=1):
         try:
             channel: YouTubeChannel = await get_channel_info(args[0])
         except aiohttp.ClientError as e:
@@ -89,17 +101,21 @@ async def add_channel_command(message: Message,
                 session.add(channel)
             await session.commit()
 
-            result = 'already exists!' if already_exists else 'successfully added.'
+            result = 'already exists!' \
+                if already_exists \
+                else 'successfully added.'
             text = f'Channel "{channel.title}" {result}'
             await message.reply(text)
 
             key = StorageKey.from_message(message)
             data = Data(channel_id=channel.id)
-            keyboard = await build_attach_tags_keyboard(data.channel_id,
-                                                        data.tags_offset,
-                                                        MAX_TAG_COUNT,
-                                                        data.back_callback_data,
-                                                        session)
+            keyboard = await build_attach_tags_keyboard(
+                data.channel_id,
+                data.tags_offset,
+                MAX_TAG_COUNT,
+                data.back_callback_data,
+                session
+            )
             text = f'Select tags for "{channel.title}"'
             await message.answer(text, reply_markup=keyboard)
             await context.storage.set_data(key, data)
@@ -126,7 +142,9 @@ async def remove_channel_command(message: Message,
         raise e
 
 
-async def add_tag(message: Message, command: CommandObject, context: BotContext):
+async def add_tag(message: Message,
+                  command: CommandObject,
+                  context: BotContext):
     if tag_name := command.args and command.args.strip():
         tag = Tag(name=tag_name)
         async with context.session_maker.begin() as session:
@@ -136,7 +154,9 @@ async def add_tag(message: Message, command: CommandObject, context: BotContext)
         await message.reply("Tag name missing!")
 
 
-async def remove_tag(message: Message, command: CommandObject, context: BotContext):
+async def remove_tag(message: Message,
+                     command: CommandObject,
+                     context: BotContext):
     if tag_name := command.args and command.args.strip():
         async with context.session_maker.begin() as session:
             await delete_tag_by_name(tag_name, session)
@@ -150,13 +170,37 @@ def register_commands(dp: Dispatcher,
                       chat_admin_filter: ChatAdminFilter,
                       bot_admin_filter: BotAdminFilter):
     commands = (
-        (start_command, chat_admin_filter, Command(commands=['start', 'help'])),
-        (menu_command, chat_admin_filter, Command(commands=['menu', ])),
-        (add_channel_command, chat_admin_filter, Command(commands=['add_channel', ])),
+        (
+            start_command,
+            chat_admin_filter,
+            Command(commands=['start', 'help'])
+        ),
+        (
+            menu_command,
+            chat_admin_filter,
+            Command(commands=['menu', ])
+        ),
+        (
+            add_channel_command,
+            chat_admin_filter,
+            Command(commands=['add_channel', ])
+        ),
 
-        (add_tag, bot_admin_filter, Command(commands=['add_tag', ])),
-        (remove_tag, bot_admin_filter, Command(commands=['remove_tag', ])),
-        (remove_channel_command, bot_admin_filter, Command(commands=['remove_channel', ]))
+        (
+            add_tag,
+            bot_admin_filter,
+            Command(commands=['add_tag', ])
+        ),
+        (
+            remove_tag,
+            bot_admin_filter,
+            Command(commands=['remove_tag', ])
+        ),
+        (
+            remove_channel_command,
+            bot_admin_filter,
+            Command(commands=['remove_channel', ])
+        )
     )
     for command in commands:
         dp.message.register(*command)

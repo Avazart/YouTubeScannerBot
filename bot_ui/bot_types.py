@@ -57,7 +57,9 @@ class StorageKey:
     @staticmethod
     def from_callback_query(q: aiogram.types.CallbackQuery) -> 'StorageKey':
         assert q.message and q.message.chat and q.from_user
-        return StorageKey(q.message.chat.id, get_thread_id(q.message), q.from_user.id)
+        return StorageKey(q.message.chat.id,
+                          get_thread_id(q.message),
+                          q.from_user.id)
 
 
 class Storage:
@@ -73,9 +75,14 @@ class Storage:
         async with self._lock:
             self._storage[key].data = copy.deepcopy(data)
 
-    async def set_state(self, key: StorageKey, state: StateType = None) -> None:
+    async def set_state(self,
+                        key: StorageKey,
+                        state: StateType = None) -> None:
         async with self._lock:
-            self._storage[key].state = state.state if isinstance(state, State) else state
+            if isinstance(state, State):
+                self._storage[key].state = state.state
+            else:
+                self._storage[key].state = None
 
     async def get_state(self, key: StorageKey) -> Optional[str]:
         async with self._lock:

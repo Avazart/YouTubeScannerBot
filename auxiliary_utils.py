@@ -8,7 +8,8 @@ def get_thread_id(message: aiogram.types.Message) -> Optional[int]:
     return message.message_thread_id if message.is_topic_message else None
 
 
-def batched_evenly(seq: Sequence, max_batch_size: int) -> Generator[Sequence, None, None]:
+def batched_evenly(seq: Sequence, max_batch_size: int) \
+        -> Generator[Sequence, None, None]:
     """ Batch data evenly with max_batch_size."""
 
     # batched_evenly('1234567', 3) --> 123 45 67

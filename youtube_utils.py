@@ -9,7 +9,11 @@ import aiohttp
 from dateutil.relativedelta import relativedelta
 
 from database.utils import YouTubeChannel, YouTubeVideo
-from youtube_parser.youtube_parser import parse_channel_info, parse_channel, parse_time_age
+from youtube_parser.youtube_parser import (
+    parse_channel_info,
+    parse_channel,
+    parse_time_age
+)
 
 
 @dataclass
@@ -52,7 +56,9 @@ def _make_video(data: dict, scan_time, channel_id: int) -> YouTubeVideo:
 
 async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
     scan_time = datetime.now()
-    make_video = partial(_make_video, scan_time=scan_time, channel_id=channel.id)
+    make_video = partial(_make_video,
+                         scan_time=scan_time,
+                         channel_id=channel.id)
 
     async with aiohttp.ClientSession() as session:
         headers = {'Accept-Language': 'en-US,en;q=0.5'}
