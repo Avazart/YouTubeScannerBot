@@ -10,7 +10,6 @@ from typing import Sequence
 
 import aiohttp
 import redis.asyncio
-import tzlocal
 from aiogram import Dispatcher, Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -19,6 +18,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker
 )
+
 from bot_ui.bot_types import BotContext, Storage
 from bot_ui.callbacks import register_callback_queries
 from bot_ui.commands import register_commands
