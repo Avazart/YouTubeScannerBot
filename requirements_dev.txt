@@ -4,3 +4,4 @@ types-beautifulsoup4
 types-colorama
 types-python-dateutil
 types-tzlocal
+flake8

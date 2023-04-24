@@ -1,0 +1,8 @@
+[flake8]
+exclude =
+    .*,
+    venv,
+    __pycache__,
+    alembic.ini,
+    configs,
+    app_data
