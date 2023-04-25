@@ -56,6 +56,6 @@ async def send_worker(settings: Settings,
 
             if failed:
                 dumps = [pickle.dumps(f) for f in failed]
-                await redis_client.rpush(failed, *dumps)
+                await redis_client.rpush(settings.redis_url, *dumps)
 
         await asyncio.sleep(settings.send_delay)
