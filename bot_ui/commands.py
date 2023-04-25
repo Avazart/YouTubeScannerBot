@@ -109,6 +109,7 @@ async def add_channel_command(message: Message,
 
             key = StorageKey.from_message(message)
             data = Data(channel_id=channel.id)
+            assert data.channel_id is not None
             keyboard = await build_attach_tags_keyboard(
                 data.channel_id,
                 data.tags_offset,

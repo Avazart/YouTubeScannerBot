@@ -344,6 +344,7 @@ async def nav_button_pressed(query: CallbackQuery,
                     )
                 case Keyboard.ATTACH_TAGS:
                     data.tags_offset = callback_data.offset
+                    assert data.channel_id is not None
                     keyboard = await build_attach_tags_keyboard(
                         data.channel_id,
                         data.tags_offset,
