@@ -64,7 +64,7 @@ async def run(settings: Settings, logger: Logger):
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
     logger.info('Upgrade database ...')
-    await upgrade_database(logger)
+    await upgrade_database(logger, attempts=1)
 
     logger.info('Create bot instance ...')
     bot = Bot(token=settings.bot_token)
