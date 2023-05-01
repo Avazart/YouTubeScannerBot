@@ -4,16 +4,6 @@ from aiogram import Dispatcher, F, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, Message
 
-from settings import MAX_TG_COUNT, MAX_TAG_COUNT, MAX_YT_CHANNEL_COUNT
-from database.utils import (
-    add_forwarding,
-    delete_forwarding,
-    get_yt_channel_by_id,
-    add_yt_channel_tag,
-    delete_yt_channel_tag,
-    set_telegram_chat_status,
-    get_destinations
-)
 from .bot_types import (
     BotContext,
     Data,
@@ -35,6 +25,16 @@ from .keyboards import (
     build_telegram_tg_keyboard,
     build_channel_keyboard,
     build_attach_tags_keyboard
+)
+from ..settings import MAX_TG_COUNT, MAX_TAG_COUNT, MAX_YT_CHANNEL_COUNT
+from ..database.utils import (
+    add_forwarding,
+    delete_forwarding,
+    get_yt_channel_by_id,
+    add_yt_channel_tag,
+    delete_yt_channel_tag,
+    set_telegram_chat_status,
+    get_destinations
 )
 
 

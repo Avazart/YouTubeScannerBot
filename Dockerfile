@@ -1,11 +1,9 @@
 FROM python:3.10
 
-WORKDIR /app
+WORKDIR /youtube_scanner
 
-COPY ./requirements.txt /app
+COPY ./requirements.txt /youtube_scanner
 
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-COPY . /app
-
-CMD ["python3", "main.py"]
+COPY . /youtube_scanner

@@ -9,7 +9,6 @@ from logging import Logger
 from typing import Sequence
 
 import aiohttp
-
 from aiogram import Dispatcher, Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -20,27 +19,27 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker
 )
 
-from bot_ui.bot_types import BotContext, Storage
-from bot_ui.callbacks import register_callback_queries
-from bot_ui.commands import register_commands
-from bot_ui.filers import ChatAdminFilter, BotAdminFilter
-from database.models import YouTubeChannel, YouTubeVideo
-from database.utils import (
+from .bot_ui.bot_types import BotContext, Storage
+from .bot_ui.callbacks import register_callback_queries
+from .bot_ui.commands import register_commands
+from .bot_ui.filers import ChatAdminFilter, BotAdminFilter
+from .database.models import YouTubeChannel, YouTubeVideo
+from .database.utils import (
     get_forwarding_data,
     get_last_video_ids,
     get_video_by_original_id)
-from format_utils import fmt_scan_data, fmt_groups, fmt_channel
-from message_utils import (
+from .format_utils import fmt_scan_data, fmt_groups, fmt_channel
+from .message_utils import (
     get_tg_to_yt_videos,
     make_message_groups
 )
-from send_worker import send_worker
-from settings import (
+from .send_worker import send_worker
+from .settings import (
     Settings,
     LAST_DAYS_IN_DB,
     LAST_DAYS_ON_PAGE
 )
-from youtube_utils import (
+from .youtube_utils import (
     get_channel_data,
     ScanData,
     YouTubeChannelData
@@ -50,7 +49,7 @@ from youtube_utils import (
 async def upgrade_database(logger: Logger, attempts=6, delay=10):
     for i in range(attempts):
         cmd = [sys.executable, '-m', 'alembic', 'upgrade', 'head']
-        r = subprocess.run(cmd, capture_output=True)
+        r = subprocess.run(cmd, capture_output=False)
         if r.returncode == 0:
             return
 

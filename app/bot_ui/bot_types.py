@@ -12,8 +12,8 @@ from aiogram.fsm.state import State
 from aiogram.fsm.storage.base import StateType
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from auxiliary_utils import get_thread_id
-from settings import Settings
+from ..auxiliary_utils import get_thread_id
+from ..settings import Settings
 
 
 @dataclass

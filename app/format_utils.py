@@ -1,9 +1,9 @@
 from textwrap import shorten
 from typing import Iterable
 
-from message_utils import ScannerMessage, MessageGroups
-from database.models import YouTubeVideo, YouTubeChannel, Destination
-from youtube_utils import ScanData
+from .message_utils import ScannerMessage, MessageGroups
+from .database.models import YouTubeVideo, YouTubeChannel, Destination
+from .youtube_utils import ScanData
 
 MAX_TITLE_WIDTH = 30
 PLACEHOLDER = " ..."

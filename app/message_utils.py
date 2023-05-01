@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Iterable
 
-from database.models import Destination, YouTubeVideo, YouTubeChannel
-from database.utils import TgToYouTubeChannels
-from youtube_utils import ScanData
+from .database.models import Destination, YouTubeVideo, YouTubeChannel
+from .database.utils import TgToYouTubeChannels
+from .youtube_utils import ScanData
 
 
 @dataclass

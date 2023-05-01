@@ -39,5 +39,5 @@ export DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@
 ```
 ###### Run bot
 
-python main.py
+python -m app
 

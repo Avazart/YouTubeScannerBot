@@ -6,20 +6,20 @@ from aiogram.client.bot import Bot
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
-from auxiliary_utils import get_thread_id, split_string
-from bot_ui.bot_types import BotContext, StorageKey, Status, Data
-from database.models import YouTubeChannel, Tag, TelegramChat, TelegramThread
-from database.utils import (
+from .bot_types import BotContext, StorageKey, Status, Data
+from .callbacks import show_main_keyboard
+from .filers import ChatAdminFilter, BotAdminFilter
+from .keyboards import build_attach_tags_keyboard
+from ..settings import MIN_MEMBER_COUNT, MAX_TAG_COUNT
+from ..youtube_utils import get_channel_info
+from ..auxiliary_utils import get_thread_id, split_string
+from ..database.models import YouTubeChannel, Tag, TelegramChat, TelegramThread
+from ..database.utils import (
     get_destinations,
     get_yt_channel_id,
     delete_tag_by_name,
     delete_channel_by_original_id
 )
-from settings import MIN_MEMBER_COUNT, MAX_TAG_COUNT
-from youtube_utils import get_channel_info
-from .callbacks import show_main_keyboard
-from .filers import ChatAdminFilter, BotAdminFilter
-from .keyboards import build_attach_tags_keyboard
 
 
 async def start_command(message: Message):

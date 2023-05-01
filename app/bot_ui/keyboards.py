@@ -1,8 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auxiliary_utils import batched_evenly
-from bot_ui.bot_types import (
+from .bot_types import (
     PageData,
     ChannelData,
     AttachTagData,
@@ -14,15 +13,21 @@ from bot_ui.bot_types import (
     NavigationData,
     CloseData
 )
-from database.models import YouTubeChannel, Tag, Status, YouTubeChannelTag
-from database.utils import (
+from ..auxiliary_utils import batched_evenly
+from ..database.models import (
+    YouTubeChannel,
+    Tag,
+    Status,
+    YouTubeChannelTag
+)
+from ..database.utils import (
     Destination,
     get_yt_channels,
     get_tags,
     get_tgs,
     get_yt_channel_tags
 )
-from settings import KEYBOARD_COLUMN_COUNT
+from ..settings import KEYBOARD_COLUMN_COUNT
 
 
 def _nav_buttons(prev_offset: int | None,

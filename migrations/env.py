@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # access to the values within the .ini file in use.
 
 
-from database.models import Base
+from app.database.models import Base
 
 config = context.config
 

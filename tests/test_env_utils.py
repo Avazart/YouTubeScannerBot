@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from env_utils import (
+from app.env_utils import (
     dataclass_from_env,
     VariableRequired,
     TypeNotSupported,

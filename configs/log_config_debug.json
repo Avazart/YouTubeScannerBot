@@ -48,7 +48,7 @@
             "level": "DEBUG"
         },
 
-        "main":
+        "app":
 		{
             "handlers": [ "ConsoleHandler" ],
             "level": "DEBUG"

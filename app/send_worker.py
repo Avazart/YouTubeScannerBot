@@ -6,12 +6,12 @@ import redis.asyncio
 from aiogram import Bot
 from aiogram.exceptions import TelegramRetryAfter, TelegramNetworkError
 
-import message_utils
-from format_utils import fmt_pair, fmt_message
-from settings import Settings
+from .message_utils import ScannerMessage, MessageGroup
+from .format_utils import fmt_pair, fmt_message
+from .settings import Settings
 
 
-async def try_send_message(m: message_utils.ScannerMessage,
+async def try_send_message(m: ScannerMessage,
                            settings: Settings,
                            bot: Bot,
                            logger: Logger):
@@ -38,8 +38,8 @@ async def send_worker(settings: Settings,
     while True:
         async with redis.asyncio.from_url(settings.redis_url) as redis_client:
             _, data = await redis_client.blpop(settings.redis_queue)
-            group: message_utils.MessageGroup = pickle.loads(data)
-            failed: message_utils.MessageGroup = []
+            group: MessageGroup = pickle.loads(data)
+            failed: MessageGroup = []
             logger.info('Sending ...')
             for m in group:
                 logger.info(fmt_pair(m.youtube_video, m.destination))

@@ -8,9 +8,9 @@ from pathlib import Path
 
 import colorama
 
-from env_utils import dataclass_from_env
-from run import run
-from settings import (
+from .env_utils import dataclass_from_env
+from .run import run
+from app.settings import (
     Settings,
     LOG_CONF_FMT
 )
@@ -31,14 +31,14 @@ def main() -> int:
     random.seed()
 
     if sys.platform.startswith('win'):
-        from win_console_utils import init_win_console
+        from .win_console_utils import init_win_console
 
         init_win_console()
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     settings = dataclass_from_env(Settings)
     init_logging(settings.log_dir, settings.debug)
-    logger = getLogger('main')
+    logger = getLogger(Path(__file__).parent.name)
     try:
         logger.info('Start work ...')
         asyncio.run(run(settings, logger))

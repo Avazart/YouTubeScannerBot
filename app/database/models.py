@@ -13,8 +13,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 
-from auxiliary_utils import make_repr
-from bot_ui.bot_types import Status
+from ..auxiliary_utils import make_repr
+from ..bot_ui.bot_types import Status
 
 YT_VIDEO_URL_FMT = 'https://www.youtube.com/watch?v={id}'
 YT_CHANNEL_URL_FMT = 'https://www.youtube.com/channel/{id}'

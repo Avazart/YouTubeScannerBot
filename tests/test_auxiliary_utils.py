@@ -1,4 +1,4 @@
-from auxiliary_utils import batched_evenly, make_repr
+from app.auxiliary_utils import batched_evenly, make_repr
 
 
 def test_batched_evenly():

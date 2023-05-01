@@ -16,8 +16,8 @@ from sqlalchemy.sql.expression import (
 )
 from sqlalchemy.sql.functions import count
 
-from bot_ui.bot_types import Status
-from database.models import (
+from ..bot_ui.bot_types import Status
+from .models import (
     TelegramChat,
     Forwarding,
     YouTubeVideo,

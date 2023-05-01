@@ -3,7 +3,7 @@ services:
     app:
         build: .
         container_name: scanner
-        command: python3 main.py
+        command: python3 -m app
         environment:
             DEBUG: $DEBUG
             WITHOUT_SENDING: $WITHOUT_SENDING

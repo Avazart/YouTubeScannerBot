@@ -8,8 +8,8 @@ import aiohttp
 
 from dateutil.relativedelta import relativedelta
 
-from database.utils import YouTubeChannel, YouTubeVideo
-from youtube_parser.youtube_parser import (
+from .database.utils import YouTubeChannel, YouTubeVideo
+from .youtube_parser.youtube_parser import (
     parse_channel_info,
     parse_channel,
     parse_time_age

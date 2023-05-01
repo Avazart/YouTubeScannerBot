@@ -48,7 +48,7 @@
             "level": "INFO"
         },
 
-        "main":
+        "app":
 		{
             "handlers": [ "ConsoleHandler" ],
             "level": "INFO"
