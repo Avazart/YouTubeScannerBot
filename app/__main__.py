@@ -8,12 +8,8 @@ from pathlib import Path
 
 import colorama
 
-from .env_utils import dataclass_from_env
+from .settings import Settings, LOG_CONF_FMT
 from .run import run
-from app.settings import (
-    Settings,
-    LOG_CONF_FMT
-)
 
 
 def init_logging(log_dir: Path, debug=False):
@@ -36,7 +32,7 @@ def main() -> int:
         init_win_console()
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    settings = dataclass_from_env(Settings)
+    settings = Settings()
     init_logging(settings.log_dir, settings.debug)
     logger = getLogger(Path(__file__).parent.name)
     try:

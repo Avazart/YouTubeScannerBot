@@ -1,7 +1,8 @@
-from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import tzlocal
+from pydantic import BaseSettings, Field
 
 LOG_CONF_FMT = 'configs/log_config{}.json'
 MIN_MEMBER_COUNT = 10
@@ -20,8 +21,11 @@ def _local_tz():
     return str(tzlocal.get_localzone())
 
 
-@dataclass(frozen=True)
-class Settings:
+def _parse_ids(s: str) -> frozenset[int]:
+    return frozenset(map(int, s.split(',')))
+
+
+class Settings(BaseSettings):
     bot_token: str
     bot_admin_ids: frozenset[int]
 
@@ -40,4 +44,11 @@ class Settings:
     error_delay: float = 65
     message_delay: float = 1
     attempt_count: int = 3
-    tz: str = field(default_factory=_local_tz)
+    tz: str = Field(default_factory=_local_tz)
+
+    class Config:
+        @classmethod
+        def parse_env_var(cls, field_name: str, raw_val: str) -> Any:
+            if field_name == 'bot_admin_ids':
+                return _parse_ids(raw_val)
+            return getattr(cls, 'json_loads')(raw_val)
