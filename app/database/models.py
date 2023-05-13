@@ -133,25 +133,29 @@ class TelegramThread(Base):
         primary_key=True,
         autoincrement=True
     )
-
     original_id: Mapped[int] = mapped_column(
         BigInteger,
     )
     original_chat_id: Mapped[int] = mapped_column(
-        ForeignKey(TelegramChat.original_id,
-                   ondelete="CASCADE",
-                   onupdate='CASCADE'),
+        ForeignKey(
+            TelegramChat.original_id,
+            ondelete="CASCADE",
+            onupdate='CASCADE'
+        ),
     )
-
     title: Mapped[str] = mapped_column(
         String,
         default=None,
         nullable=True
     )
 
-    __table_args__ = (UniqueConstraint('original_id',
-                                       'original_chat_id',
-                                       name='unique_thread'),)
+    __table_args__ = (
+        UniqueConstraint(
+            'original_id',
+            'original_chat_id',
+            name='unique_thread'
+        ),
+    )
 
     def __repr__(self):
         return make_repr(self)
@@ -197,30 +201,38 @@ class Forwarding(Base):
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
-        autoincrement=True
+        autoincrement=True,
     )
     youtube_channel_id: Mapped[int] = mapped_column(
-        ForeignKey(YouTubeChannel.id,
-                   ondelete="CASCADE",
-                   onupdate='CASCADE'),
+        ForeignKey(
+            YouTubeChannel.id,
+            ondelete="CASCADE",
+            onupdate='CASCADE'
+        ),
     )
     telegram_chat_id: Mapped[int] = mapped_column(
-        ForeignKey(TelegramChat.original_id,
-                   ondelete="CASCADE",
-                   onupdate='CASCADE'),
+        ForeignKey(
+            TelegramChat.original_id,
+            ondelete="CASCADE",
+            onupdate='CASCADE'
+        ),
     )
     telegram_thread_id: Mapped[int] = mapped_column(
-        ForeignKey(TelegramThread.id,
-                   ondelete="CASCADE",
-                   onupdate='CASCADE'),
+        ForeignKey(
+            TelegramThread.id,
+            ondelete="CASCADE",
+            onupdate='CASCADE'
+        ),
         nullable=True
     )
 
     __table_args__ = (
-        UniqueConstraint('youtube_channel_id',
-                         'telegram_chat_id',
-                         'telegram_thread_id',
-                         name='unique_forwarding'),
+        UniqueConstraint(
+            'youtube_channel_id',
+            'telegram_chat_id',
+            'telegram_thread_id',
+            name='unique_forwarding'
+        ),
     )
 
     def __repr__(self):
@@ -239,9 +251,11 @@ class YouTubeVideo(Base):
         unique=True,
     )
     channel_id: Mapped[int] = mapped_column(
-        ForeignKey(YouTubeChannel.id,
-                   ondelete='CASCADE',
-                   onupdate='CASCADE'),
+        ForeignKey(
+            YouTubeChannel.id,
+            ondelete='CASCADE',
+            onupdate='CASCADE'
+        ),
         default=None
     )
     title: Mapped[str] = mapped_column(
@@ -267,13 +281,13 @@ class YouTubeVideo(Base):
         default=None,
         nullable=True
     )
-
     live_24_7: Mapped[bool] = mapped_column(
         Boolean,
         default=False
     )
-    url = property(lambda self:
-                   YT_VIDEO_URL_FMT.format(id=self.original_id))
+    url = property(
+        lambda self: YT_VIDEO_URL_FMT.format(id=self.original_id)
+    )
 
     def __repr__(self):
         return make_repr(self)
@@ -318,19 +332,26 @@ class YouTubeChannelTag(Base):
         autoincrement=True
     )
     tag_id: Mapped[int] = mapped_column(
-        ForeignKey(Tag.id,
-                   ondelete="CASCADE",
-                   onupdate='CASCADE')
+        ForeignKey(
+            Tag.id,
+            ondelete="CASCADE",
+            onupdate='CASCADE'
+        )
     )
     channel_id: Mapped[int] = mapped_column(
-        ForeignKey(YouTubeChannel.id,
-                   ondelete="CASCADE",
-                   onupdate='CASCADE')
+        ForeignKey(
+            YouTubeChannel.id,
+            ondelete="CASCADE",
+            onupdate='CASCADE'
+        )
     )
+
     __table_args__ = (
-        UniqueConstraint('tag_id',
-                         'channel_id',
-                         name='unique_yt_tag'),
+        UniqueConstraint(
+            'tag_id',
+            'channel_id',
+            name='unique_yt_tag'
+        ),
     )
 
     def __repr__(self):

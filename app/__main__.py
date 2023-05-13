@@ -12,7 +12,7 @@ from .settings import Settings
 from .run import run
 
 
-def init_logging(log_dir: Path, mode: str):
+def init_logging(log_dir: Path, mode: str) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_config_path = Path(f'log_configs/{mode}.json')
     with open(log_config_path) as file:

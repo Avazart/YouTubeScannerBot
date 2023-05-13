@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from .database.models import Destination, YouTubeVideo, YouTubeChannel
-from .database.utils import TgToYouTubeChannels
+from .database.utils import TgToYouTubeChannels, TgYtToForwarding
 from .youtube_utils import ScanData
 
 
@@ -20,7 +20,8 @@ TgToYouTubeVideos = dict[Destination, list[YouTubeVideo]]
 
 def get_tg_to_yt_videos(
         scan_data: ScanData,
-        tg_to_yt_channels: TgToYouTubeChannels
+        tg_to_yt_channels: TgToYouTubeChannels,
+        tg_yt_to_forwarding: TgYtToForwarding
 ) -> TgToYouTubeVideos:
     tg_to_yt_videos = {}
     for tg, channels in tg_to_yt_channels.items():
