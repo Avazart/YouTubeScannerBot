@@ -8,13 +8,13 @@ from pathlib import Path
 
 import colorama
 
-from .settings import Settings, LOG_CONF_FMT
+from .settings import Settings
 from .run import run
 
 
-def init_logging(log_dir: Path, debug=False):
+def init_logging(log_dir: Path, mode: str):
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_config_path = LOG_CONF_FMT.format('_debug' if debug else '')
+    log_config_path = Path(f'log_configs/{mode}.json')
     with open(log_config_path) as file:
         config = json.load(file)
         file_handler = config['handlers']['FileHandler']
@@ -33,11 +33,11 @@ def main() -> int:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     settings = Settings()
-    init_logging(settings.log_dir, settings.debug)
+    init_logging(settings.log_dir, settings.mode)
     logger = getLogger(Path(__file__).parent.name)
     try:
         logger.info('Start work ...')
-        asyncio.run(run(settings, logger))
+        asyncio.run(run(settings))
         logger.info('Work finished.')
     except KeyboardInterrupt:  # Ctrl+C
         logger.warning('Interrupted by user.')

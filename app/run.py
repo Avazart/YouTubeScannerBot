@@ -5,7 +5,7 @@ import random
 import subprocess
 import sys
 from datetime import datetime, timedelta
-from logging import Logger
+from logging import getLogger
 from typing import Sequence
 
 import aiohttp
@@ -45,8 +45,10 @@ from .youtube_utils import (
     YouTubeChannelData
 )
 
+logger = getLogger(__name__)
 
-async def upgrade_database(logger: Logger, attempts=6, delay=10):
+
+async def upgrade_database(attempts=6, delay=10):
     for i in range(attempts):
         cmd = [sys.executable, '-m', 'alembic', 'upgrade', 'head']
         r = subprocess.run(cmd, capture_output=False)
@@ -58,12 +60,12 @@ async def upgrade_database(logger: Logger, attempts=6, delay=10):
     raise RuntimeError('Can`t upgrade database!')
 
 
-async def run(settings: Settings, logger: Logger):
+async def run(settings: Settings):
     engine = create_async_engine(settings.database_url, echo=False)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
     logger.info('Upgrade database ...')
-    await upgrade_database(logger, attempts=1)
+    await upgrade_database(attempts=1)
 
     logger.info('Create bot instance ...')
     bot = Bot(token=settings.bot_token)
@@ -72,27 +74,25 @@ async def run(settings: Settings, logger: Logger):
     chat_admin_filter = ChatAdminFilter(settings.bot_admin_ids)
     register_commands(dp, chat_admin_filter, bot_admin_filter)
     register_callback_queries(dp, chat_admin_filter, bot_admin_filter)
-    context = BotContext(logger, session_maker, settings, Storage())
+    context = BotContext(settings, Storage(), session_maker)
 
     logger.info('Create scheduler ...')
     scheduler = AsyncIOScheduler(timezone=settings.tz)
     trigger = CronTrigger.from_crontab(settings.cron_schedule,
                                        timezone=settings.tz)
     scheduler.add_job(update,
-                      args=(session_maker, settings, logger),
+                      args=(session_maker, settings),
                       trigger=trigger)
     scheduler.start()
 
     tasks = [
         dp.start_polling(bot, skip_updates=True, context=context),
-        send_worker(settings, bot, logger),
+        send_worker(settings, bot),
     ]
     await asyncio.gather(*tasks)
 
 
-async def update(session_maker,
-                 settings: Settings,
-                 logger: Logger):
+async def update(session_maker, settings: Settings):
     async with session_maker() as session:
         logger.info('Updating ...')
 
@@ -101,17 +101,16 @@ async def update(session_maker,
         youtube_channels = list(
             set(itertools.chain.from_iterable(tg_to_yt_channels.values()))
         )
-        if not settings.debug:
+        if not settings.mode != 'dev':
             random.shuffle(youtube_channels)
         logger.info(f'Channel count {len(youtube_channels)}')
 
         logger.info('Scan youtube channels ...')
         scan_data = await scan_youtube_channels(youtube_channels,
-                                                settings.request_delay,
-                                                logger)
+                                                settings.request_delay)
 
         logger.info('Search new videos ...')
-        new_data = await get_new_data(scan_data, session, logger)
+        new_data = await get_new_data(scan_data, session)
         new_videos = frozenset(
             itertools.chain.from_iterable(list(new_data.values()))
         )
@@ -138,8 +137,7 @@ async def update(session_maker,
 
 
 async def scan_youtube_channels(channels: Sequence[YouTubeChannel],
-                                request_delay: float,
-                                logger: Logger) -> ScanData:
+                                request_delay: float) -> ScanData:
     result = {}
     for i, channel in enumerate(channels, start=1):
         logger.debug(f"{i}/{len(channels)} " + fmt_channel(channel))
@@ -154,9 +152,7 @@ async def scan_youtube_channels(channels: Sequence[YouTubeChannel],
     return result
 
 
-async def get_new_data(scan_data: ScanData,
-                       session: AsyncSession,
-                       logger: Logger) -> ScanData:
+async def get_new_data(scan_data: ScanData, session: AsyncSession) -> ScanData:
     new_data: ScanData = {}
     last_time = datetime.today() - timedelta(days=LAST_DAYS_ON_PAGE)
 

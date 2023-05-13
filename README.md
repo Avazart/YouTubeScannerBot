@@ -21,10 +21,10 @@ https://www.python.org/downloads/
 ###### Set environment
 
 ```
-export DEBUG=on
+export MODE=prod
 export WITHOUT_SENDING=off
-export APP_DATA="../app_data/release"
-export LOG_DIR="/home/app_data/release/logs"
+export APP_DATA="../app_data/prod"
+export LOG_DIR="/home/app_data/prod/logs"
 export BOT_TOKEN="5670291437:AbGk1Zu_fghjkRBYDZXgp6qwFX6d0Z9egigz"
 export BOT_ADMIN_IDS=1361728070,1361728070
 export CRON_SCHEDULE="55 8,11,13,17,19,20 * * *"

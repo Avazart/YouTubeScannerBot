@@ -1,6 +1,6 @@
 import asyncio
 import pickle
-from logging import Logger
+from logging import getLogger
 
 import redis.asyncio
 from aiogram import Bot
@@ -10,11 +10,10 @@ from .message_utils import ScannerMessage, MessageGroup
 from .format_utils import fmt_pair, fmt_message
 from .settings import Settings
 
+logger = getLogger(__name__)
 
-async def try_send_message(m: ScannerMessage,
-                           settings: Settings,
-                           bot: Bot,
-                           logger: Logger):
+
+async def try_send_message(m: ScannerMessage, settings: Settings, bot: Bot):
     for i in range(settings.attempt_count):
         try:
             await bot.send_message(
@@ -32,9 +31,7 @@ async def try_send_message(m: ScannerMessage,
         logger.error('Max limit of attempt count')
 
 
-async def send_worker(settings: Settings,
-                      bot: Bot,
-                      logger: Logger):
+async def send_worker(settings: Settings, bot: Bot):
     while True:
         async with redis.asyncio.from_url(settings.redis_url) as redis_client:
             _, data = await redis_client.blpop(settings.redis_queue)
@@ -45,7 +42,7 @@ async def send_worker(settings: Settings,
                 logger.info(fmt_pair(m.youtube_video, m.destination))
                 try:
                     if not settings.without_sending:
-                        await try_send_message(m, settings, bot, logger)
+                        await try_send_message(m, settings, bot)
                 except TelegramNetworkError as e:
                     logger.error(
                         'Send error:\n'

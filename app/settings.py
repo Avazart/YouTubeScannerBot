@@ -4,7 +4,6 @@ from typing import Any
 import tzlocal
 from pydantic import BaseSettings, Field
 
-LOG_CONF_FMT = 'configs/log_config{}.json'
 MIN_MEMBER_COUNT = 10
 
 LAST_DAYS_ON_PAGE = 2
@@ -35,7 +34,7 @@ class Settings(BaseSettings):
     redis_url: str
     redis_queue: str = "youtube_scanner:queue"
 
-    debug: bool = False
+    mode: str = 'dev'
     without_sending: bool = False
 
     cron_schedule: str = '*/30 * * * *'

@@ -5,7 +5,7 @@ services:
         container_name: scanner
         command: python3 -m app
         environment:
-            DEBUG: $DEBUG
+            MODE: $MODE
             WITHOUT_SENDING: $WITHOUT_SENDING
             LOG_DIR: $LOG_DIR
             DATABASE_URL: $DATABASE_URL

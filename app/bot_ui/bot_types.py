@@ -1,6 +1,5 @@
 import asyncio
 import copy
-import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import IntEnum, auto
@@ -90,10 +89,9 @@ class Storage:
 
 
 class BotContext(NamedTuple):
-    logger: logging.Logger
-    session_maker: async_sessionmaker
     settings: Settings
     storage: Storage
+    session_maker: async_sessionmaker
 
 
 UNICODE_CHARS = "✅🟩🚫"

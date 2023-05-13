@@ -1,3 +1,4 @@
+from logging import getLogger
 from typing import no_type_check
 
 import aiohttp
@@ -20,6 +21,8 @@ from ..database.utils import (
     delete_tag_by_name,
     delete_channel_by_original_id
 )
+
+logger = getLogger(__name__)
 
 
 async def start_command(message: Message):
@@ -87,7 +90,7 @@ async def add_channel_command(message: Message,
         try:
             channel: YouTubeChannel = await get_channel_info(args[0])
         except aiohttp.ClientError as e:
-            context.logger.error(f"{type(e)} {e}")
+            logger.error(f"{type(e)} {e}")
             await message.reply("I can't add this channel!")
             return
 

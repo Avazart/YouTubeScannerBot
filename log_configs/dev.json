@@ -13,7 +13,7 @@
         "ColoredFormatter": 
 		{
             "class": "colorlog.ColoredFormatter",            
-            "format": "%(log_color)s[%(asctime)s] %(message)s",
+            "format": "%(log_color)s[%(asctime)s] %(message)s [%(name)s]",
 			"datefmt": "%H:%M:%S"
         }		
     },	
