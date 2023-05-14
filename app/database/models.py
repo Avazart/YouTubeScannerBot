@@ -11,9 +11,13 @@ from sqlalchemy import (
     UniqueConstraint,
     BigInteger
 )
-from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    MappedAsDataclass,
+    Mapped,
+    mapped_column
+)
 
-from ..auxiliary_utils import make_repr
 from ..bot_ui.bot_types import Status
 
 YT_VIDEO_URL_FMT = 'https://www.youtube.com/watch?v={id}'
@@ -26,10 +30,11 @@ class Base(DeclarativeBase):
     __abstract__ = True
 
 
-class YouTubeChannel(Base):
+class YouTubeChannel(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "YouTubeChannels"
 
-    id: Mapped[int | None] = mapped_column(
+    id: Mapped[int] = mapped_column(
+        init=False,
         primary_key=True,
         autoincrement=True
     )
@@ -50,9 +55,6 @@ class YouTubeChannel(Base):
             base_url=self.canonical_base_url
         )
 
-    def __repr__(self):
-        return make_repr(self)
-
     def __hash__(self):
         return hash(self.original_id)
 
@@ -60,7 +62,7 @@ class YouTubeChannel(Base):
         return self.original_id == other.original_id
 
 
-class TelegramChat(Base):
+class TelegramChat(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "TelegramChats"
 
     original_id: Mapped[int] = mapped_column(
@@ -116,9 +118,6 @@ class TelegramChat(Base):
                             is_creator=None,
                             status=Status.ON)
 
-    def __repr__(self):
-        return make_repr(self)
-
     def __hash__(self):
         return hash(self.original_id)
 
@@ -126,7 +125,7 @@ class TelegramChat(Base):
         return self.original_id == other.original_id
 
 
-class TelegramThread(Base):
+class TelegramThread(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "TelegramThreads"
 
     id: Mapped[int] = mapped_column(
@@ -156,9 +155,6 @@ class TelegramThread(Base):
             name='unique_thread'
         ),
     )
-
-    def __repr__(self):
-        return make_repr(self)
 
     def __hash__(self):
         return hash((self.original_chat_id, self.original_id))
@@ -196,10 +192,11 @@ class Destination:
                 (other.chat, other.thread))
 
 
-class Forwarding(Base):
+class Forwarding(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "Forwarding"
 
     id: Mapped[int] = mapped_column(
+        init=False,
         primary_key=True,
         autoincrement=True,
     )
@@ -235,20 +232,24 @@ class Forwarding(Base):
         ),
     )
 
-    def __repr__(self):
-        return make_repr(self)
+    def __eq__(self, other):
+        return self.id == other.id
 
 
-class YouTubeVideo(Base):
+class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "YouTubeVideos"
 
     id: Mapped[int] = mapped_column(
+        init=False,
         primary_key=True,
         autoincrement=True
     )
     original_id: Mapped[str] = mapped_column(
         String,
         unique=True,
+    )
+    scan_time: Mapped[datetime] = mapped_column(
+        DateTime,
     )
     channel_id: Mapped[int] = mapped_column(
         ForeignKey(
@@ -273,9 +274,6 @@ class YouTubeVideo(Base):
         default=None,
         nullable=True
     )
-    scan_time: Mapped[datetime] = mapped_column(
-        DateTime,
-    )
     creation_time: Mapped[datetime] = mapped_column(
         DateTime,
         default=None,
@@ -289,9 +287,6 @@ class YouTubeVideo(Base):
         lambda self: YT_VIDEO_URL_FMT.format(id=self.original_id)
     )
 
-    def __repr__(self):
-        return make_repr(self)
-
     def __hash__(self):
         return hash(self.original_id)
 
@@ -299,10 +294,11 @@ class YouTubeVideo(Base):
         return self.original_id == other.original_id
 
 
-class Tag(Base):
+class Tag(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "Tags"
 
     id: Mapped[int] = mapped_column(
+        init=False,
         primary_key=True,
         autoincrement=True
     )
@@ -314,9 +310,6 @@ class Tag(Base):
         autoincrement=True
     )
 
-    def __repr__(self):
-        return make_repr(self)
-
     def __hash__(self):
         return hash(self.id)
 
@@ -324,10 +317,11 @@ class Tag(Base):
         return self.id == other.id
 
 
-class YouTubeChannelTag(Base):
+class YouTubeChannelTag(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "YouTubeChannelTags"
 
     id: Mapped[int] = mapped_column(
+        init=False,
         primary_key=True,
         autoincrement=True
     )
@@ -353,9 +347,6 @@ class YouTubeChannelTag(Base):
             name='unique_yt_tag'
         ),
     )
-
-    def __repr__(self):
-        return make_repr(self)
 
     def __hash__(self):
         return hash((self.tag_id, self.channel_id))
