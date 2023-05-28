@@ -8,15 +8,18 @@ from dateutil.relativedelta import relativedelta
 from . import search
 
 DATA_PATTERN = re.compile(r'\s*var\s+ytInitialData\s*=\s*')
-MEASUREMENT_NAMES = frozenset((
-    'second',
-    'minute',
-    'hour',
-    'day',
-    'week',
-    'month',
-    'year'
-))
+
+MEASUREMENT_SHORT_NAMES = {
+    's': 'second',
+    'm': 'minute',
+    'h': 'hour',
+    'd': 'day',
+    'w': 'week',
+    'mo': 'month',
+    'y': 'year'
+}
+
+MEASUREMENT_NAMES = frozenset(MEASUREMENT_SHORT_NAMES.values())
 
 
 class YoutubeParserError(Exception):
@@ -184,10 +187,12 @@ def parse_channel_info(content: str) -> dict:
 
 @no_type_check
 def parse_time_age(text: str) -> relativedelta:
-    if m := re.search(r'(\d+)\s+(\w+?)s?\s+ago', text):
+    if m := re.search(r'(\d+)\s*(\w+?)s?\s+ago', text):
         value, measurement = int(m.group(1)), m.group(2)
         if measurement in MEASUREMENT_NAMES:
             return relativedelta(**{measurement + 's': value})
+        elif full_measurement := MEASUREMENT_SHORT_NAMES.get(measurement):
+            return relativedelta(**{full_measurement + 's': value})
         else:
             raise RuntimeError(
                 f'Measurement "{measurement}" is not supported!'
