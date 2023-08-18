@@ -127,44 +127,44 @@ class Keyboard(IntEnum):
 
 # CallbackData
 
-class NavigationData(CallbackData, **dict(prefix='navigation')):
+class NavigationData(CallbackData, prefix='navigation'):
     keyboard: Keyboard
 
 
-class CloseData(CallbackData, **dict(prefix='close')):
+class CloseData(CallbackData, prefix='close'):
     pass
 
 
-class ChannelData(CallbackData, **dict(prefix='channel')):
+class ChannelData(CallbackData, prefix='channel'):
     id: int
     enabled: bool
 
 
-class PageData(CallbackData, **dict(prefix='page')):
+class PageData(CallbackData,  prefix='page'):
     offset: int
     keyboard: Keyboard
 
 
-class TagFilterData(CallbackData, **dict(prefix='tag')):
+class TagFilterData(CallbackData, prefix='tag'):
     id: int
 
 
-class AttachTagData(CallbackData, **dict(prefix='attach_tag')):
+class AttachTagData(CallbackData, prefix='attach_tag'):
     channel_id: int  # id in database
 
 
-class YtChannelTagData(CallbackData, **dict(prefix='yt_channel_tag')):
+class YtChannelTagData(CallbackData, prefix='yt_channel_tag'):
     tag_id: int
     channel_id: int
     enabled: bool
 
 
-class TgData(CallbackData, **dict(prefix='tg')):
+class TgData(CallbackData, prefix='tg'):
     chat_id: int
     thread_id: Optional[int]
 
 
-class StatusData(CallbackData, **dict(prefix='status')):
+class StatusData(CallbackData, prefix='status'):
     chat_id: int
     thread_id: Optional[int]
     status: Status
