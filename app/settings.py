@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     message_delay: float = 1
     attempt_count: int = 3
     tz: str = Field(default_factory=_local_tz)
+    check_migrations: bool = True
 
     class Config:
         @classmethod

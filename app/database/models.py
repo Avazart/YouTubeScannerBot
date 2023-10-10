@@ -9,7 +9,7 @@ from sqlalchemy import (
     Boolean,
     ForeignKey,
     UniqueConstraint,
-    BigInteger
+    BigInteger, MetaData
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -28,7 +28,6 @@ TG_URL_FMT = 'https://t.me/{user_name}'
 
 class Base(DeclarativeBase):
     __abstract__ = True
-
 
 class YouTubeChannel(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "YouTubeChannels"

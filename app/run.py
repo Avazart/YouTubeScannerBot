@@ -10,6 +10,7 @@ from typing import Sequence
 
 import aiohttp
 from aiogram import Dispatcher, Bot
+from aiogram.types import BotCommand
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from redis.asyncio import from_url
@@ -23,7 +24,7 @@ from .bot_ui.bot_types import BotContext, Storage
 from .bot_ui.callbacks import register_callback_queries
 from .bot_ui.commands import register_commands
 from .bot_ui.filers import ChatAdminFilter, BotAdminFilter
-from .database.models import YouTubeChannel, YouTubeVideo
+from .database.models import YouTubeChannel, YouTubeVideo, Base
 from .database.utils import (
     get_forwarding_data,
     get_last_video_ids,
@@ -69,8 +70,9 @@ async def run(settings: Settings) -> None:
     engine = create_async_engine(settings.database_url, echo=False)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-    logger.info('Upgrade database ...')
-    await upgrade_database(attempts=1)
+    if settings.check_migrations:
+        logger.info('Upgrade database ...')
+        await upgrade_database(attempts=1)
 
     logger.info('Create bot instance ...')
     bot = Bot(token=settings.bot_token)
@@ -80,6 +82,21 @@ async def run(settings: Settings) -> None:
     register_commands(dp, chat_admin_filter, bot_admin_filter)
     register_callback_queries(dp, chat_admin_filter, bot_admin_filter)
     context = BotContext(settings, Storage(), session_maker)
+
+    await bot.set_my_commands([
+        BotCommand(command='/start',
+                   description="Start working with the bot"),
+        BotCommand(command='/menu',
+                   description="Open the menu"),
+        BotCommand(command='/add_channel',
+                   description="Add youtube channel"),
+        BotCommand(command='/remove_channel',
+                   description="Remove youtube channel"),
+        BotCommand(command='/add_tag',
+                   description="Add tag for youtube channel"),
+        BotCommand(command='/remove_tag',
+                   description="Remove tag"),
+    ])
 
     logger.info('Create scheduler ...')
     scheduler = AsyncIOScheduler(timezone=settings.tz)
@@ -134,8 +151,7 @@ async def update(session_maker, settings: Settings) -> None:
             logger.info('Make message groups ...')
             tg_to_yt_videos = get_tg_to_yt_videos(
                 new_data,
-                tg_to_yt_channels,
-                tg_yt_to_forwarding
+                tg_to_yt_channels
             )
             groups = make_message_groups(tg_to_yt_videos, youtube_channels)
             logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
