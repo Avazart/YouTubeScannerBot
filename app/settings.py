@@ -29,7 +29,12 @@ class Settings(BaseSettings):
     bot_admin_ids: frozenset[int]
 
     log_dir: Path
-    database_url: str
+
+    postgres_password: str
+    postgres_user: str = "postgres"
+    postgres_db: str = "postgres"
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
 
     redis_url: str
     redis_queue: str = "youtube_scanner:queue"
@@ -52,3 +57,10 @@ class Settings(BaseSettings):
             if field_name == 'bot_admin_ids':
                 return _parse_ids(raw_val)
             return getattr(cls, 'json_loads')(raw_val)
+
+    @property
+    def database_url(self):
+        return (f"postgresql+asyncpg://"
+                f"{self.postgres_user}:{self.postgres_password}"
+                f"@{self.postgres_host}:{self.postgres_port}"
+                f"/{self.postgres_db}")

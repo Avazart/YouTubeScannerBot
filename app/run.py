@@ -24,7 +24,7 @@ from .bot_ui.bot_types import BotContext, Storage
 from .bot_ui.callbacks import register_callback_queries
 from .bot_ui.commands import register_commands
 from .bot_ui.filers import ChatAdminFilter, BotAdminFilter
-from .database.models import YouTubeChannel, YouTubeVideo, Base
+from .database.models import YouTubeChannel, YouTubeVideo
 from .database.utils import (
     get_forwarding_data,
     get_last_video_ids,
@@ -236,7 +236,7 @@ async def filter_data_by_id(scan_data: ScanData,
         assert channel.id is not None
         if data.videos or data.streams:
             last_video_ids = await get_last_video_ids(
-                channel.id,
+                channel.id, # noqa
                 LAST_DAYS_IN_DB,
                 session
             )

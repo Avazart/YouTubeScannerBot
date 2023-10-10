@@ -7,6 +7,7 @@ from logging.config import dictConfig
 from pathlib import Path
 
 import colorama
+from dotenv import load_dotenv
 
 from .settings import Settings
 from .run import run
@@ -31,6 +32,11 @@ def main() -> int:
 
         init_win_console()
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    if len(sys.argv) == 2:
+        load_dotenv(f".env.{sys.argv[1]}")
+    else:
+        load_dotenv()
 
     settings = Settings()
     init_logging(settings.log_dir, settings.mode)
