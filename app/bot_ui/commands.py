@@ -149,13 +149,17 @@ async def remove_channel_command(message: Message,
 async def add_tag(message: Message,
                   command: CommandObject,
                   context: BotContext):
-    if tag_name := command.args and command.args.strip():
-        tag = Tag(name=tag_name)
-        async with context.session_maker.begin() as session:
-            await session.merge(tag)
-        await message.reply("Successfully added.")
+    if args := command.args.strip().split():
+        try:
+            tag_name, tag_order = args[0], int(args[1])
+            tag = Tag(name=tag_name, order=tag_order)
+            async with context.session_maker.begin() as session:
+                await session.merge(tag)
+            await message.reply("Successfully added.")
+        except ValueError:
+            await message.reply("Wrong args")
     else:
-        await message.reply("Tag name missing!")
+        await message.reply("Tag name or/and order missing!")
 
 
 async def remove_tag(message: Message,
