@@ -1,7 +1,12 @@
 app_data/
+logs/
 
 # Environments
 .env
+.env.*
+
+# Venv
+.venv/
 venv/
 
 # Python Cache
