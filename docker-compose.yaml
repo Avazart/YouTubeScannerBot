@@ -1,14 +1,20 @@
 version: "2.2"
 services:
     app:
-        build: .
-        container_name: scanner
+        container_name: youtube_scanner_app
+        image: youtube_scanner_app
         command: python3 -m app
+        volumes:
+            - ${APP_DATA}/logs:${LOG_DIR}
         environment:
             MODE: $MODE
             WITHOUT_SENDING: $WITHOUT_SENDING
             LOG_DIR: $LOG_DIR
-            DATABASE_URL: $DATABASE_URL
+            PGUSER: $PGUSER
+            PGPASSWORD: $PGPASSWORD
+            PGDATABASE: $PGDATABASE
+            PGHOST: $PGHOST
+            PGPORT: $PGPORT
             BOT_TOKEN: $BOT_TOKEN
             BOT_ADMIN_IDS: $BOT_ADMIN_IDS
             CRON_SCHEDULE: $CRON_SCHEDULE
@@ -16,8 +22,6 @@ services:
             REDIS_URL: $REDIS_URL
             REDIS_QUEUE: $REDIS_QUEUE
             TZ: $TZ
-        volumes:
-            - ${APP_DATA}/logs:${LOG_DIR}
         depends_on:
             database:
                 condition: service_healthy
@@ -32,16 +36,18 @@ services:
     database:
         container_name: postgres
         image: postgres:14.1-alpine
-        environment:
-            POSTGRES_USER: $POSTGRES_USER
-            POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-            POSTGRES_DB: $POSTGRES_DB
-            POSTGRES_PORT: $POSTGRES_PORT
         volumes:
             - ${APP_DATA}/init_db:/docker-entrypoint-initdb.d/
             - ${APP_DATA}/database_data:/var/lib/postgresql/data
+        environment:
+            PGUSER: $PGUSER
+            PGPASSWORD: $PGPASSWORD
+            POSTGRES_PASSWORD: $PGPASSWORD
+            PGDATABASE: $PGDATABASE
+            PGHOST: $PGHOST
+            PGPORT: $PGPORT
         healthcheck:
-              test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+              test: ["CMD-SHELL", "pg_isready"]
               interval: 5s
               timeout: 5s
               retries: 5

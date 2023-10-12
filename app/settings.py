@@ -1,19 +1,30 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import tzlocal
+from aiogram.types import BotCommand
 from pydantic import BaseSettings, Field
 
-MIN_MEMBER_COUNT = 10
+MIN_MEMBER_COUNT: Final[int] = 10
 
-LAST_DAYS_ON_PAGE = 2
-LAST_DAYS_IN_DB = 30
+LAST_DAYS_ON_PAGE: Final[int] = 2
+LAST_DAYS_IN_DB: Final[int] = 30
 
-KEYBOARD_COLUMN_COUNT = 4
+KEYBOARD_COLUMN_COUNT: Final[int] = 4
 
-MAX_YT_CHANNEL_COUNT = 10
-MAX_TAG_COUNT = 40
-MAX_TG_COUNT = 10
+MAX_YT_CHANNEL_COUNT: Final[int] = 10
+MAX_TAG_COUNT: Final[int] = 40
+MAX_TG_COUNT: Final[int] = 10
+
+MY_COMMANDS: Final[list] = [
+    BotCommand(command='/start', description='Start working with the bot'),
+    BotCommand(command='/menu', description='Open the menu'),
+    BotCommand(command='/add_channel', description='Add youtube channel'),
+    BotCommand(command='/remove_channel',
+               description='Remove youtube channel'),
+    BotCommand(command='/add_tag', description='Add tag for youtube channel'),
+    BotCommand(command='/remove_tag', description='Remove tag by name')
+]
 
 
 def _local_tz():
@@ -30,11 +41,11 @@ class Settings(BaseSettings):
 
     log_dir: Path
 
-    postgres_password: str
-    postgres_user: str = "postgres"
-    postgres_db: str = "postgres"
-    postgres_host: str = "localhost"
-    postgres_port: int = 5432
+    db_password: str = Field(env="PGPASSWORD")
+    db_user: str = Field("postgres", env="PGUSER")
+    db_name: str = Field("postgres", env="PGDATABASE")
+    db_host: str = Field("localhost", env="PGHOST")
+    db_port: int = Field(5432, env="PGPORT")
 
     redis_url: str
     redis_queue: str = "youtube_scanner:queue"
@@ -49,7 +60,9 @@ class Settings(BaseSettings):
     message_delay: float = 1
     attempt_count: int = 3
     tz: str = Field(default_factory=_local_tz)
-    check_migrations: bool = True
+    check_migrations: bool = False
+    db_url_fmt = ("postgresql+asyncpg://{user}:{password}"
+                  "@{host}:{port}/{db_name}")
 
     class Config:
         @classmethod
@@ -60,7 +73,10 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self):
-        return (f"postgresql+asyncpg://"
-                f"{self.postgres_user}:{self.postgres_password}"
-                f"@{self.postgres_host}:{self.postgres_port}"
-                f"/{self.postgres_db}")
+        return self.db_url_fmt.format(
+            user=self.db_user,
+            password=self.db_password,
+            host=self.db_host,
+            port=self.db_port,
+            db_name=self.db_name
+        )

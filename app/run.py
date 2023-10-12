@@ -10,7 +10,6 @@ from typing import Sequence
 
 import aiohttp
 from aiogram import Dispatcher, Bot
-from aiogram.types import BotCommand
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from redis.asyncio import from_url
@@ -43,7 +42,8 @@ from .send_worker import send_worker
 from .settings import (
     Settings,
     LAST_DAYS_IN_DB,
-    LAST_DAYS_ON_PAGE
+    LAST_DAYS_ON_PAGE,
+    MY_COMMANDS
 )
 from .youtube_utils import (
     get_channel_data,
@@ -66,6 +66,11 @@ async def upgrade_database(attempts=6, delay=10) -> None:
     raise RuntimeError('Can`t upgrade database!')
 
 
+async def on_startup(bot: Bot):
+    logger.info("Bot started.")
+    await bot.set_my_commands(MY_COMMANDS)
+
+
 async def run(settings: Settings) -> None:
     engine = create_async_engine(settings.database_url, echo=False)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -77,26 +82,12 @@ async def run(settings: Settings) -> None:
     logger.info('Create bot instance ...')
     bot = Bot(token=settings.bot_token)
     dp = Dispatcher()
+    await bot.delete_webhook(drop_pending_updates=True)
     bot_admin_filter = BotAdminFilter(settings.bot_admin_ids)
     chat_admin_filter = ChatAdminFilter(settings.bot_admin_ids)
     register_commands(dp, chat_admin_filter, bot_admin_filter)
     register_callback_queries(dp, chat_admin_filter, bot_admin_filter)
     context = BotContext(settings, Storage(), session_maker)
-
-    await bot.set_my_commands([
-        BotCommand(command='/start',
-                   description="Start working with the bot"),
-        BotCommand(command='/menu',
-                   description="Open the menu"),
-        BotCommand(command='/add_channel',
-                   description="Add youtube channel"),
-        BotCommand(command='/remove_channel',
-                   description="Remove youtube channel"),
-        BotCommand(command='/add_tag',
-                   description="Add tag for youtube channel"),
-        BotCommand(command='/remove_tag',
-                   description="Remove tag"),
-    ])
 
     logger.info('Create scheduler ...')
     scheduler = AsyncIOScheduler(timezone=settings.tz)
@@ -111,8 +102,10 @@ async def run(settings: Settings) -> None:
     )
     scheduler.start()
 
+    logger.info("Run tasks ...")
+    dp.startup.register(on_startup)
     tasks = [
-        dp.start_polling(bot, skip_updates=True, context=context),
+        dp.start_polling(bot, context=context),
         send_worker(settings, bot),
     ]
     await asyncio.gather(*tasks)
@@ -236,7 +229,7 @@ async def filter_data_by_id(scan_data: ScanData,
         assert channel.id is not None
         if data.videos or data.streams:
             last_video_ids = await get_last_video_ids(
-                channel.id, # noqa
+                channel.id,  # noqa
                 LAST_DAYS_IN_DB,
                 session
             )
