@@ -19,7 +19,7 @@ from ..settings import Settings
 class Data:
     keyboard_id: Optional[int] = None
 
-    tags_offset: int = 0
+    categories_offset: int = 0
     yt_channels_offset: int = 0
     tgs_offset: int = 0
 
@@ -31,7 +31,7 @@ class Data:
     channel_id: Optional[int] = None
 
     # tag filter -> channels -> nav buttons
-    tags_ids: set[int] = field(default_factory=set)
+    categories_ids: set[int] = field(default_factory=set)
 
     back_callback_data: Optional[str] = None
 
@@ -119,10 +119,10 @@ class Status(IntEnum):
 
 class Keyboard(IntEnum):
     MAIN = auto()
-    TAG_FILTER = auto()
+    CATEGORY_FILTER = auto()
     YT_CHANNELS = auto()
     TG_OBJECTS = auto()
-    ATTACH_TAGS = auto()
+    ATTACH_CATEGORIES = auto()
 
 
 # CallbackData
@@ -145,16 +145,16 @@ class PageData(CallbackData,  prefix='page'):
     keyboard: Keyboard
 
 
-class TagFilterData(CallbackData, prefix='tag'):
+class CategoryFilterData(CallbackData, prefix='category'):
     id: int
 
 
-class AttachTagData(CallbackData, prefix='attach_tag'):
+class AttachCategoryData(CallbackData, prefix='attach_category'):
     channel_id: int  # id in database
 
 
-class YtChannelTagData(CallbackData, prefix='yt_channel_tag'):
-    tag_id: int
+class YTChannelCategoryData(CallbackData, prefix='yt_channel_category'):
+    category_id: int
     channel_id: int
     enabled: bool
 

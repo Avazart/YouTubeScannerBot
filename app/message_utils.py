@@ -11,6 +11,7 @@ class ScannerMessage:
     destination: Destination
     youtube_video: YouTubeVideo
     youtube_channel_title: str
+    tags: list[str]
 
 
 MessageGroup = list[ScannerMessage]
@@ -33,7 +34,8 @@ def get_tg_to_yt_videos(
 
 def make_message_groups(
         tg_to_yt_videos: TgToYouTubeVideos,
-        youtube_channels: Iterable[YouTubeChannel]) -> MessageGroups:
+        youtube_channels: Iterable[YouTubeChannel],
+        tags: dict[str, list[str]]) -> MessageGroups:
     yt_channel_ids = {c.id: c for c in youtube_channels}
     groups: MessageGroups = []
     values = tg_to_yt_videos.values()
@@ -43,7 +45,10 @@ def make_message_groups(
         for tg, videos in tg_to_yt_videos.items():
             if i < len(videos):
                 youtube_channel = yt_channel_ids[videos[i].channel_id]
-                m = ScannerMessage(tg, videos[i], youtube_channel.title)
+                m = ScannerMessage(tg,
+                                   videos[i],
+                                   youtube_channel.title,
+                                   tags.get(videos[i].original_id,[]))
                 group.append(m)
         groups.append(group)
     return groups

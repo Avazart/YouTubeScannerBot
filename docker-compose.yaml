@@ -9,6 +9,7 @@ services:
         environment:
             MODE: $MODE
             WITHOUT_SENDING: $WITHOUT_SENDING
+            PARSE_TAGS: $PARSE_TAGS
             LOG_DIR: $LOG_DIR
             PGUSER: $PGUSER
             PGPASSWORD: $PGPASSWORD

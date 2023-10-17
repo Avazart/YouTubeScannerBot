@@ -1,15 +1,17 @@
 @echo off
-setlocal enabledelayedexpansion
+call set_env.bat
 
-set ENV_FILE=..\..\.env.dev
-set BACKUP_FILE=..\..\app_data\backup.sql
-
-for /f "usebackq tokens=1,2 delims== " %%a in ("%ENV_FILE%") do (
-    set "%%a=%%b"
-    echo "%%a=%%b"
+for /f %%i in ('python3.11 scripts\backup.py --dir %BACKUP_DIR% last') do (
+  set "LAST_BACKUP_PATH=%%i"
 )
-"C:\Program Files\PostgreSQL\14\bin\psql.exe"  -f "..\drop_schema.sql"
-"C:\Program Files\PostgreSQL\14\bin\psql.exe"  -f %BACKUP_FILE%
 
-endlocal
+echo LAST_BACKUP_PATH: "%LAST_BACKUP_PATH%"
+
+%PSQL_PATH% -f "scripts\drop_schema.sql"
+%PSQL_PATH% -f %LAST_BACKUP_PATH%
+%PSQL_PATH% -f "scripts\drop_destinations.sql"
+%PSQL_PATH% -f "scripts\make_dev_db.sql"
+
+echo LAST_BACKUP_PATH: "%LAST_BACKUP_PATH%"
+
 pause

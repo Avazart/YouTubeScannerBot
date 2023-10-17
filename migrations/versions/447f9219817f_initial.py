@@ -61,7 +61,7 @@ def upgrade() -> None:
     op.create_table(
         'YouTubeChannelTags',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column('tag_id', sa.Integer(), nullable=False),
+        sa.Column('category_id', sa.Integer(), nullable=False),
         sa.Column('channel_id', sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(
             ['channel_id'],
@@ -70,7 +70,7 @@ def upgrade() -> None:
             ondelete='CASCADE'
         ),
         sa.ForeignKeyConstraint(
-            ['tag_id'],
+            ['category_id'],
             ['Tags.id'],
             onupdate='CASCADE',
             ondelete='CASCADE'

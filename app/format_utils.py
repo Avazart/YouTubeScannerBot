@@ -1,5 +1,7 @@
+import re
 from textwrap import shorten
 from typing import Iterable
+from string import punctuation
 
 from .message_utils import ScannerMessage, MessageGroups
 from .database.models import YouTubeVideo, YouTubeChannel, Destination
@@ -7,6 +9,7 @@ from .youtube_utils import ScanData
 
 MAX_TITLE_WIDTH = 30
 PLACEHOLDER = " ..."
+PATTERN = re.compile(rf'[ {re.escape(punctuation)}]+')
 
 
 def fmt_video(v: YouTubeVideo) -> str:
@@ -63,9 +66,13 @@ def fmt_groups(groups: MessageGroups, indent: str = '') -> str:
 
 def fmt_message(m: ScannerMessage) -> str:
     time_str = m.youtube_video.time_ago if m.youtube_video.time_ago else ""
+    tags_line = " ".join(
+        '#' + PATTERN.sub('_', tag) for tag in m.tags
+    )
     return (
         f'<b>{m.youtube_channel_title}</b>\n'
         f'{m.youtube_video.title}\n'
         f'<i>{time_str}</i>\n'
-        f'{m.youtube_video.url}'
+        f'{m.youtube_video.url}\n'
+        f'{tags_line}'
     )

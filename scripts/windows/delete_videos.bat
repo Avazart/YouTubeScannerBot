@@ -1,7 +1,7 @@
 setlocal enabledelayedexpansion
 call set_env.bat
-
-%PSQL_PATH% -f "scripts\drop_schema.sql"
+echo %PSQL_PATH%
+%PSQL_PATH% -f "scripts\delete_videos.sql"
 
 endlocal
 pause

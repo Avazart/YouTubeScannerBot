@@ -10,15 +10,15 @@ from aiogram.types import Message
 from .bot_types import BotContext, StorageKey, Status, Data
 from .callbacks import show_main_keyboard
 from .filers import ChatAdminFilter, BotAdminFilter
-from .keyboards import build_attach_tags_keyboard
-from ..settings import MIN_MEMBER_COUNT, MAX_TAG_COUNT
+from .keyboards import build_attach_categories_keyboard
+from ..settings import MIN_MEMBER_COUNT, MAX_CATEGORY_COUNT
 from ..youtube_utils import get_channel_info
 from ..auxiliary_utils import get_thread_id, split_string
-from ..database.models import YouTubeChannel, Tag, TelegramChat, TelegramThread
+from ..database.models import YouTubeChannel, Category, TelegramChat, TelegramThread
 from ..database.utils import (
     get_destinations,
     get_yt_channel_id,
-    delete_tag_by_name,
+    delete_category_by_name,
     delete_channel_by_original_id
 )
 
@@ -113,14 +113,14 @@ async def add_channel_command(message: Message,
             key = StorageKey.from_message(message)
             data = Data(channel_id=channel.id)
             assert data.channel_id is not None
-            keyboard = await build_attach_tags_keyboard(
+            keyboard = await build_attach_categories_keyboard(
                 data.channel_id,
-                data.tags_offset,
-                MAX_TAG_COUNT,
+                data.categories_offset,
+                MAX_CATEGORY_COUNT,
                 data.back_callback_data,
                 session
             )
-            text = f'Select tags for "{channel.title}"'
+            text = f'Select categories for "{channel.title}"'
             await message.answer(text, reply_markup=keyboard)
             await context.storage.set_data(key, data)
 
@@ -146,31 +146,31 @@ async def remove_channel_command(message: Message,
         raise e
 
 
-async def add_tag(message: Message,
-                  command: CommandObject,
-                  context: BotContext):
+async def add_category(message: Message,
+                       command: CommandObject,
+                       context: BotContext):
     if args := command.args.strip().split():
         try:
-            tag_name, tag_order = args[0], int(args[1])
-            tag = Tag(name=tag_name, order=tag_order)
+            category_name, category_order = args[0], int(args[1])
+            tag = Category(name=category_name, order=category_order)
             async with context.session_maker.begin() as session:
                 await session.merge(tag)
             await message.reply("Successfully added.")
         except ValueError:
             await message.reply("Wrong args")
     else:
-        await message.reply("Tag name or/and order missing!")
+        await message.reply("Category name or/and order missing!")
 
 
-async def remove_tag(message: Message,
-                     command: CommandObject,
-                     context: BotContext):
-    if tag_name := command.args and command.args.strip():
+async def remove_category(message: Message,
+                          command: CommandObject,
+                          context: BotContext):
+    if category_name := command.args and command.args.strip():
         async with context.session_maker.begin() as session:
-            await delete_tag_by_name(tag_name, session)
-        await message.reply("Tag removed.")
+            await delete_category_by_name(category_name, session)
+        await message.reply("Category removed.")
     else:
-        await message.reply("Tag name missing!")
+        await message.reply("Category name missing!")
 
 
 @no_type_check
@@ -195,14 +195,14 @@ def register_commands(dp: Dispatcher,
         ),
 
         (
-            add_tag,
+            add_category,
             bot_admin_filter,
-            Command(commands=['add_tag', ])
+            Command(commands=['add_category', ])
         ),
         (
-            remove_tag,
+            remove_category,
             bot_admin_filter,
-            Command(commands=['remove_tag', ])
+            Command(commands=['remove_category', ])
         ),
         (
             remove_channel_command,

@@ -1,15 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
+call set_env.bat
 
-
-set ENV_FILE=..\..\.env.dev
-for /f "usebackq tokens=1,2 delims== " %%a in ("%ENV_FILE%") do (
-    set "%%a=%%b"
-    echo "%%a=%%b"
-)
-
-cd ..\..
-venv\Scripts\alembic.exe upgrade head
+echo %ALEMBIC_PATH%
+%ALEMBIC_PATH% upgrade head
 
 endlocal
 pause

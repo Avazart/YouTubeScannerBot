@@ -19,8 +19,8 @@ from .models import (
     Forwarding,
     YouTubeVideo,
     YouTubeChannel,
-    Tag,
-    YouTubeChannelTag,
+    Category,
+    YTChannelCategory,
     TelegramThread,
     Destination
 )
@@ -108,7 +108,7 @@ async def get_yt_channel_id(original_id: str,
 
 async def get_yt_channels(tg_chat_id: int,
                           tg_thread_id: int | None,
-                          tag_ids: set[int],
+                          category_ids: set[int],
                           offset: int | None,
                           limit: int | None,
                           session: AsyncSession) \
@@ -130,13 +130,19 @@ async def get_yt_channels(tg_chat_id: int,
         ).label("enabled")
     )
 
-    if tag_ids:
+    if category_ids:
         q = (
-            q.join(YouTubeChannelTag, YouTubeChannelTag.tag_id.in_(tag_ids))
-            .where(YouTubeChannel.id == YouTubeChannelTag.channel_id)
-            .group_by(YouTubeChannel.id, YouTubeChannelTag.channel_id)
-            .having(
-                count(distinct(YouTubeChannelTag.tag_id)) == len(tag_ids)
+            q.join(
+                YTChannelCategory,
+                YTChannelCategory.category_id.in_(category_ids)
+            ).where(
+                YouTubeChannel.id == YTChannelCategory.channel_id
+            ).group_by(
+                YouTubeChannel.id,
+                YTChannelCategory.channel_id
+            ).having(
+                count(distinct(YTChannelCategory.category_id))
+                == len(category_ids)
             )
         )
     else:
@@ -221,11 +227,11 @@ async def set_telegram_chat_status(chat_id: int,
     await session.execute(q)
 
 
-# TAG
+# CATEGORY
 
-async def get_tag_id_by_name(tag_name: str,
-                             session: AsyncSession) -> int | None:
-    q = select(Tag.id).where(Tag.name == tag_name)
+async def get_category_id_by_name(category_name: str,
+                                  session: AsyncSession) -> int | None:
+    q = select(Category.id).where(Category.name == category_name)
     return await session.scalar(q)
 
 
@@ -238,16 +244,16 @@ async def delete_channel_by_original_id(original_id: str,
     await session.execute(q)
 
 
-async def delete_tag_by_name(tag_name: str,
-                             session: AsyncSession) -> None:
-    q = delete(Tag).where(Tag.name == tag_name)
+async def delete_category_by_name(category_name: str,
+                                  session: AsyncSession) -> None:
+    q = delete(Category).where(Category.name == category_name)
     await session.execute(q)
 
 
-async def get_tags(offset: int | None,
-                   limit: int | None,
-                   session: AsyncSession) -> list[Tag]:
-    q = select(Tag).order_by(Tag.order)
+async def get_categories(offset: int | None,
+                         limit: int | None,
+                         session: AsyncSession) -> list[Category]:
+    q = select(Category).order_by(Category.order)
     if offset is not None:
         q = q.offset(offset)
     if limit is not None:
@@ -255,41 +261,41 @@ async def get_tags(offset: int | None,
     return list((await session.scalars(q)).all())
 
 
-async def add_yt_channel_tag(tag_id: int,
-                             channel_id: int,
-                             session: AsyncSession) -> None:
-    yt_tag = YouTubeChannelTag(tag_id=tag_id, channel_id=channel_id)
-    await session.merge(yt_tag)
+async def add_yt_channel_category(category_id: int,
+                                  channel_id: int,
+                                  session: AsyncSession) -> None:
+    yt_category = YTChannelCategory(category_id=category_id, channel_id=channel_id)
+    await session.merge(yt_category)
 
 
-async def delete_yt_channel_tag(tag_id: int,
-                                channel_id: int,
-                                session: AsyncSession) -> None:
+async def delete_yt_channel_category(category_id: int,
+                                     channel_id: int,
+                                     session: AsyncSession) -> None:
     q = (
-        delete(YouTubeChannelTag)
-        .where((YouTubeChannelTag.tag_id == tag_id) &
-               (YouTubeChannelTag.channel_id == channel_id))
+        delete(YTChannelCategory)
+        .where((YTChannelCategory.category_id == category_id) &
+               (YTChannelCategory.channel_id == channel_id))
     )
     await session.execute(q)
 
 
-async def get_yt_channel_tags(yt_channel_id: int,
-                              offset: int | None,
-                              limit: int | None,
-                              session: AsyncSession) \
-        -> list[tuple[YouTubeChannelTag, bool]]:
+async def get_yt_channel_categories(yt_channel_id: int,
+                                    offset: int | None,
+                                    limit: int | None,
+                                    session: AsyncSession) \
+        -> list[tuple[YTChannelCategory, bool]]:
     q = (
         select(
-            Tag,
+            Category,
             exists(
-                select(YouTubeChannelTag)
+                select(YTChannelCategory)
                 .where(
-                    (YouTubeChannelTag.channel_id == yt_channel_id) &
-                    (YouTubeChannelTag.tag_id == Tag.id)
+                    (YTChannelCategory.channel_id == yt_channel_id) &
+                    (YTChannelCategory.category_id == Category.id)
                 )
             )
         )
-        .order_by(Tag.order)
+        .order_by(Category.order)
     )
     if offset is not None:
         q = q.offset(offset)

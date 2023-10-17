@@ -294,8 +294,8 @@ class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return self.original_id == other.original_id
 
 
-class Tag(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
-    __tablename__ = "Tags"
+class Category(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+    __tablename__ = "Categories"
 
     id: Mapped[int] = mapped_column(
         init=False,
@@ -317,17 +317,17 @@ class Tag(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return self.id == other.id
 
 
-class YouTubeChannelTag(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
-    __tablename__ = "YouTubeChannelTags"
+class YTChannelCategory(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+    __tablename__ = "YTChannelCategories"
 
     id: Mapped[int] = mapped_column(
         init=False,
         primary_key=True,
         autoincrement=True
     )
-    tag_id: Mapped[int] = mapped_column(
+    category_id: Mapped[int] = mapped_column(
         ForeignKey(
-            Tag.id,
+            Category.id,
             ondelete="CASCADE",
             onupdate='CASCADE'
         )
@@ -342,15 +342,15 @@ class YouTubeChannelTag(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
 
     __table_args__ = (
         UniqueConstraint(
-            'tag_id',
+            'category_id',
             'channel_id',
             name='unique_yt_tag'
         ),
     )
 
     def __hash__(self):
-        return hash((self.tag_id, self.channel_id))
+        return hash((self.category_id, self.channel_id))
 
     def __eq__(self, other):
-        return ((self.tag_id, self.channel_id) ==
-                (other.tag_id, other.channel_id))
+        return ((self.category_id, self.channel_id) ==
+                (other.category_id, other.channel_id))

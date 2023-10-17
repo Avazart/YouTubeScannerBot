@@ -48,7 +48,7 @@ from .settings import (
 from .youtube_utils import (
     get_channel_data,
     ScanData,
-    YouTubeChannelData
+    YouTubeChannelData, get_video_tags
 )
 
 logger = getLogger(__name__)
@@ -133,9 +133,16 @@ async def update(session_maker, settings: Settings) -> None:
         logger.info('Search new videos ...')
         new_data = await filter_data_by_time(scan_data)
         new_data = await filter_data_by_id(new_data, session)
-        new_videos = frozenset(
+        new_videos: frozenset[YouTubeVideo] = frozenset(
             itertools.chain.from_iterable(list(new_data.values()))
         )
+
+        tags = {}
+        if settings.parse_tags:
+            logger.info(f'Parse tags of videos ...')
+            for video in new_videos:
+                tags[video.original_id] = await get_video_tags(video.url)
+                await asyncio.sleep(settings.request_delay)
 
         logger.info(f'New videos: {len(new_videos)}')
         if new_videos:
@@ -146,7 +153,9 @@ async def update(session_maker, settings: Settings) -> None:
                 new_data,
                 tg_to_yt_channels
             )
-            groups = make_message_groups(tg_to_yt_videos, youtube_channels)
+            groups = make_message_groups(
+                tg_to_yt_videos, youtube_channels, tags
+            )
             logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
 
             dumps = [pickle.dumps(group) for group in groups]

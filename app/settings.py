@@ -13,7 +13,7 @@ LAST_DAYS_IN_DB: Final[int] = 30
 KEYBOARD_COLUMN_COUNT: Final[int] = 4
 
 MAX_YT_CHANNEL_COUNT: Final[int] = 10
-MAX_TAG_COUNT: Final[int] = 40
+MAX_CATEGORY_COUNT: Final[int] = 40
 MAX_TG_COUNT: Final[int] = 10
 
 MY_COMMANDS: Final[list] = [
@@ -22,8 +22,10 @@ MY_COMMANDS: Final[list] = [
     BotCommand(command='/add_channel', description='Add youtube channel'),
     BotCommand(command='/remove_channel',
                description='Remove youtube channel'),
-    BotCommand(command='/add_tag', description='Add tag for youtube channel'),
-    BotCommand(command='/remove_tag', description='Remove tag by name')
+    BotCommand(command='/add_category',
+               description='Add category for youtube channel'),
+    BotCommand(command='/remove_category',
+               description='Remove category by name')
 ]
 
 
@@ -61,6 +63,7 @@ class Settings(BaseSettings):
     attempt_count: int = 3
     tz: str = Field(default_factory=_local_tz)
     check_migrations: bool = False
+    parse_tags: bool = False
     db_url_fmt = ("postgresql+asyncpg://{user}:{password}"
                   "@{host}:{port}/{db_name}")
 

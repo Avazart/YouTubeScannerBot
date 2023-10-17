@@ -20,11 +20,11 @@ def upgrade() -> None:
     if connection.engine.name == 'sqlite':
         with op.batch_alter_table('YouTubeChannelTags') as batch_op:
             batch_op.create_unique_constraint('unique_yt_tag',
-                                              ['tag_id', 'channel_id'])
+                                              ['category_id', 'channel_id'])
     else:
         op.create_unique_constraint('unique_yt_tag',
                                     'YouTubeChannelTags',
-                                    ['tag_id', 'channel_id'])
+                                    ['category_id', 'channel_id'])
 
 
 def downgrade() -> None:

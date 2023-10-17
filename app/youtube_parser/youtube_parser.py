@@ -198,3 +198,12 @@ def parse_time_age(text: str) -> relativedelta:
                 f'Measurement "{measurement}" is not supported!'
             )
     raise RuntimeError(f'Time "{text}" format is not supported!')
+
+
+def parse_video_tags(content: str | bytes) -> list[str]:
+    soup = bs4.BeautifulSoup(content, 'lxml')
+    head_el = soup.find('head')
+    assert head_el
+    # <meta property="og:video:tag" content="web scraping">
+    tag_els = head_el.find_all('meta', {'property': 'og:video:tag'})
+    return [tag_el['content'] for tag_el in tag_els]

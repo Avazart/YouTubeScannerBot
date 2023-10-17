@@ -3,6 +3,7 @@ import itertools
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
+from typing import Iterator
 
 import aiohttp
 
@@ -12,7 +13,7 @@ from .database.utils import YouTubeChannel, YouTubeVideo
 from .youtube_parser.youtube_parser import (
     parse_channel_info,
     parse_channel,
-    parse_time_age
+    parse_time_age, parse_video_tags
 )
 
 
@@ -21,7 +22,7 @@ class YouTubeChannelData:
     videos: list[YouTubeVideo] = dataclasses.field(default_factory=list)
     streams: list[YouTubeVideo] = dataclasses.field(default_factory=list)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[YouTubeVideo]:
         return itertools.chain(self.videos, self.streams)
 
     def __bool__(self):
@@ -95,3 +96,13 @@ async def get_channel_info(url: str) -> YouTubeChannel:
         return YouTubeChannel(original_id=info['channel_id'],
                               canonical_base_url=info['canonical_base_url'],
                               title=info['title'])
+
+
+async def get_video_tags(url: str) -> list[str]:
+    async with aiohttp.ClientSession() as session:
+        headers = {'Accept-Language': 'en-US,en;q=0.5'}
+        session.headers.update(headers)
+        r = await session.get(url=url)
+        r.raise_for_status()
+        return parse_video_tags(await r.text())
+
