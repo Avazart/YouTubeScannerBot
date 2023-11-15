@@ -34,7 +34,8 @@ def main() -> int:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     if len(sys.argv) == 2:
-        load_dotenv(f".env.{sys.argv[1]}")
+        env_file = f".env.{sys.argv[1]}"
+        load_dotenv(env_file)
     else:
         load_dotenv()
 

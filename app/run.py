@@ -9,7 +9,8 @@ from logging import getLogger
 from typing import Sequence
 
 import aiohttp
-from aiogram import Dispatcher, Bot
+from aiogram import Bot, Dispatcher
+from aiogram.filters import or_f
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from redis.asyncio import from_url
@@ -20,9 +21,8 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from .bot_ui.bot_types import BotContext, Storage
-from .bot_ui.callbacks import register_callback_queries
-from .bot_ui.commands import register_commands
-from .bot_ui.filers import ChatAdminFilter, BotAdminFilter
+from .bot_ui.filers import ChatAdminFilter, BotAdminFilter, PrivateChatFilter
+from .bot_ui.handlers import chat_admins, bot_admins
 from .database.models import YouTubeChannel, YouTubeVideo
 from .database.utils import (
     get_forwarding_data,
@@ -75,20 +75,30 @@ async def run(settings: Settings) -> None:
     engine = create_async_engine(settings.database_url, echo=False)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-    if settings.check_migrations:
-        logger.info('Upgrade database ...')
-        await upgrade_database(attempts=1)
+    # if settings.check_migrations:
+    #    logger.info('Upgrade database ...')
+    #    await upgrade_database(attempts=1)
 
     logger.info('Create bot instance ...')
     bot = Bot(token=settings.bot_token)
     dp = Dispatcher()
     await bot.delete_webhook(drop_pending_updates=True)
-    bot_admin_filter = BotAdminFilter(settings.bot_admin_ids)
-    chat_admin_filter = ChatAdminFilter(settings.bot_admin_ids)
-    register_commands(dp, chat_admin_filter, bot_admin_filter)
-    register_callback_queries(dp, chat_admin_filter, bot_admin_filter)
-    context = BotContext(settings, Storage(), session_maker)
 
+    bot_admin_filter = BotAdminFilter(settings.bot_admin_ids)
+    bot_admins.router.callback_query.filter(bot_admin_filter)
+    bot_admins.router.message.filter(bot_admin_filter)
+
+    chat_admin_filter = or_f(
+        PrivateChatFilter(),  # F.chat.type == 'private' ?
+        bot_admin_filter,
+        ChatAdminFilter(),
+    )
+    chat_admins.router.message.filter(chat_admin_filter)
+    chat_admins.router.callback_query.filter(chat_admin_filter)
+
+    dp.include_routers(chat_admins.router, bot_admins.router)
+
+    context = BotContext(settings, Storage(), session_maker)
     logger.info('Create scheduler ...')
     scheduler = AsyncIOScheduler(timezone=settings.tz)
     trigger = CronTrigger.from_crontab(

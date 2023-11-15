@@ -236,8 +236,7 @@ def _fmt_tg_object(tg: Destination) -> str:
     return f'{title}{thread}'
 
 
-def _tg_objects_buttons(tgs: list[Destination]) \
-        -> list[list[InlineKeyboardButton]]:
+def _tg_objects_buttons(tgs: list[Destination]) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for tg in tgs:
         data = TgData(
@@ -274,8 +273,7 @@ def _tg_objects_buttons(tgs: list[Destination]) \
 def _tgs_keyboard(tgs: list[Destination],
                   prev_offset: int | None,
                   next_offset: int | None,
-                  back_callback_data: str | None) \
-        -> InlineKeyboardMarkup:
+                  back_callback_data: str | None) -> InlineKeyboardMarkup:
     buttons = _tg_objects_buttons(tgs)
     nav_button = _nav_buttons(
         prev_offset,
