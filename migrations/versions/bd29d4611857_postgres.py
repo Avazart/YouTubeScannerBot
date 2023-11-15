@@ -11,27 +11,42 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'bd29d4611857'
-down_revision = '447f9219817f'
+revision = "bd29d4611857"
+down_revision = "447f9219817f"
 branch_labels = None
 depends_on = None
 
 big_int_targets = [
-    ('TelegramChats', ['original_id', ]),
-    ('TelegramThreads', ['original_chat_id', ]),
-    ('Forwarding', ['telegram_chat_id', ]),
+    (
+        "TelegramChats",
+        [
+            "original_id",
+        ],
+    ),
+    (
+        "TelegramThreads",
+        [
+            "original_chat_id",
+        ],
+    ),
+    (
+        "Forwarding",
+        [
+            "telegram_chat_id",
+        ],
+    ),
 ]
 
 nullable_targets = [
-    ('TelegramChats', ['title', 'first_name', 'last_name', 'is_creator']),
-    ('TelegramThreads', ['title']),
-    ('YouTubeVideos', ['title', 'style', 'time_ago', 'creation_time']),
+    ("TelegramChats", ["title", "first_name", "last_name", "is_creator"]),
+    ("TelegramThreads", ["title"]),
+    ("YouTubeVideos", ["title", "style", "time_ago", "creation_time"]),
 ]
 
 
 def upgrade() -> None:
     connection: sqlalchemy.engine.base.Connection = op.get_bind()
-    if connection.engine.name == 'sqlite':
+    if connection.engine.name == "sqlite":
         for table, columns in big_int_targets:
             with op.batch_alter_table(table) as batch_op:
                 for column in columns:
@@ -53,7 +68,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     connection: sqlalchemy.engine.base.Connection = op.get_bind()
-    if connection.engine.name == 'sqlite':
+    if connection.engine.name == "sqlite":
         for table, columns in big_int_targets:
             with op.batch_alter_table(table) as batch_op:
                 for column in columns:

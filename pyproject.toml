@@ -1,0 +1,60 @@
+[build-system]
+requires = ["python>=3.11"]
+
+[tool.black]
+target-version = ['py311']
+exclude = '\.venv|\.git'
+line-length=79
+
+[tool.mypy]
+strict = false
+exclude = [
+    "^venv/.*$",
+    "^migrations/.*$",
+    "^tests/.*$",
+    "^scripts/.*$",
+]
+plugins = [
+  "sqlalchemy.ext.mypy.plugin",
+  "pydantic.mypy"
+  ]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[[tool.mypy.overrides]]
+module = "aiogram.*,apscheduler.*"
+ignore_missing_imports = true
+
+[tool.ruff]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "venv",
+    ".venv",
+    ".env",
+    ".idea",
+    ".vscode",
+    "logs",
+    "photos",
+]
+line-length = 79
+target-version = "py311"
+
+[tool.ruff.format]
+quote-style = "double"
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint.isort]
+case-sensitive = true
+
+[tool.ruff.lint]
+ignore = []
+
+[tool.ruff.extend-per-file-ignores]
+"__init__.py" = ["F401"]

@@ -17,7 +17,7 @@ from redis.asyncio import from_url
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     AsyncSession,
-    async_sessionmaker
+    async_sessionmaker,
 )
 
 from .bot_ui.bot_types import BotContext, Storage
@@ -27,28 +27,17 @@ from .database.models import YouTubeChannel, YouTubeVideo
 from .database.utils import (
     get_forwarding_data,
     get_last_video_ids,
-    get_video_by_original_id
+    get_video_by_original_id,
 )
-from .format_utils import (
-    fmt_scan_data,
-    fmt_groups,
-    fmt_channel
-)
-from .message_utils import (
-    get_tg_to_yt_videos,
-    make_message_groups
-)
+from .format_utils import fmt_scan_data, fmt_groups, fmt_channel
+from .message_utils import get_tg_to_yt_videos, make_message_groups
 from .send_worker import send_worker
-from .settings import (
-    Settings,
-    LAST_DAYS_IN_DB,
-    LAST_DAYS_ON_PAGE,
-    MY_COMMANDS
-)
+from .settings import Settings, LAST_DAYS_IN_DB, LAST_DAYS_ON_PAGE, MY_COMMANDS
 from .youtube_utils import (
     get_channel_data,
     ScanData,
-    YouTubeChannelData, get_video_tags
+    YouTubeChannelData,
+    get_video_tags,
 )
 
 logger = getLogger(__name__)
@@ -56,14 +45,14 @@ logger = getLogger(__name__)
 
 async def upgrade_database(attempts=6, delay=10) -> None:
     for i in range(attempts):
-        cmd = [sys.executable, '-m', 'alembic', 'upgrade', 'head']
+        cmd = [sys.executable, "-m", "alembic", "upgrade", "head"]
         r = subprocess.run(cmd, capture_output=False)
         if r.returncode == 0:
             return
 
-        logger.warning('Database is not ready!')
+        logger.warning("Database is not ready!")
         await asyncio.sleep(delay)
-    raise RuntimeError('Can`t upgrade database!')
+    raise RuntimeError("Can`t upgrade database!")
 
 
 async def on_startup(bot: Bot):
@@ -75,11 +64,7 @@ async def run(settings: Settings) -> None:
     engine = create_async_engine(settings.database_url, echo=False)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-    # if settings.check_migrations:
-    #    logger.info('Upgrade database ...')
-    #    await upgrade_database(attempts=1)
-
-    logger.info('Create bot instance ...')
+    logger.info("Create bot instance ...")
     bot = Bot(token=settings.bot_token)
     dp = Dispatcher()
     await bot.delete_webhook(drop_pending_updates=True)
@@ -99,16 +84,16 @@ async def run(settings: Settings) -> None:
     dp.include_routers(chat_admins.router, bot_admins.router)
 
     context = BotContext(settings, Storage(), session_maker)
-    logger.info('Create scheduler ...')
+    logger.info("Create scheduler ...")
     scheduler = AsyncIOScheduler(timezone=settings.tz)
     trigger = CronTrigger.from_crontab(
         settings.cron_schedule,
-        timezone=settings.tz
+        timezone=settings.tz,
     )
     scheduler.add_job(
         update,
         args=(session_maker, settings),
-        trigger=trigger
+        trigger=trigger,
     )
     scheduler.start()
 
@@ -122,7 +107,7 @@ async def run(settings: Settings) -> None:
 
 
 async def update(session_maker, settings: Settings) -> None:
-    logger.info('Updating ...')
+    logger.info("Updating ...")
 
     async with session_maker() as session:
         f_data = await get_forwarding_data(session)
@@ -131,16 +116,18 @@ async def update(session_maker, settings: Settings) -> None:
         youtube_channels = list(
             set(itertools.chain.from_iterable(tg_to_yt_channels.values()))
         )
-        if not settings.mode != 'dev':
+        if not settings.mode != "dev":
             random.shuffle(youtube_channels)
 
-        logger.info('Scan youtube channels ...')
-        logger.info(f'Channel count {len(youtube_channels)}')
+        logger.info("Scan youtube channels ...")
+        logger.info(f"Channel count {len(youtube_channels)}")
 
-        scan_data = await scan_youtube_channels(youtube_channels,
-                                                settings.request_delay)
+        scan_data = await scan_youtube_channels(
+            youtube_channels,
+            settings.request_delay,
+        )
 
-        logger.info('Search new videos ...')
+        logger.info("Search new videos ...")
         new_data = await filter_data_by_time(scan_data)
         new_data = await filter_data_by_id(new_data, session)
         new_videos: frozenset[YouTubeVideo] = frozenset(
@@ -149,61 +136,64 @@ async def update(session_maker, settings: Settings) -> None:
 
         tags = {}
         if settings.parse_tags:
-            logger.info(f'Parse tags of videos ...')
+            logger.info("Parse tags of videos ...")
             for video in new_videos:
                 tags[video.original_id] = await get_video_tags(video.url)
                 await asyncio.sleep(settings.request_delay)
 
-        logger.info(f'New videos: {len(new_videos)}')
+        logger.info(f"New videos: {len(new_videos)}")
         if new_videos:
             logger.info(fmt_scan_data(new_data))
 
-            logger.info('Make message groups ...')
-            tg_to_yt_videos = get_tg_to_yt_videos(
-                new_data,
-                tg_to_yt_channels
-            )
+            logger.info("Make message groups ...")
+            tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
             groups = make_message_groups(
                 tg_to_yt_videos, youtube_channels, tags
             )
-            logger.info('Messages:\n' + fmt_groups(groups, ' ' * 4))
+            logger.info("Messages:\n" + fmt_groups(groups, " " * 4))
 
             dumps = [pickle.dumps(group) for group in groups]
             async with from_url(settings.redis_url) as redis_client:
                 await redis_client.rpush(settings.redis_queue, *dumps)
 
-            logger.info('Save new videos to database ...')
+            logger.info("Save new videos to database ...")
             try:
                 session.add_all(new_videos)
                 await session.commit()
             except Exception as e:
                 logger.exception(e)
-        logger.info('Updating finished.')
+        logger.info("Updating finished.")
 
 
-async def scan_youtube_channels(channels: Sequence[YouTubeChannel],
-                                request_delay: float) -> ScanData:
+async def scan_youtube_channels(
+    channels: Sequence[YouTubeChannel],
+    request_delay: float,
+) -> ScanData:
     result = {}
     for i, channel in enumerate(channels, start=1):
         logger.debug(f"{i}/{len(channels)} " + fmt_channel(channel))
         try:
             result[channel] = await get_channel_data(channel)
         except (aiohttp.ClientConnectorError, asyncio.TimeoutError) as e:
-            logger.error(f'Scan error {channel.url}\n{type(e)}')
+            logger.error(f"Scan error {channel.url}\n{type(e)}")
         except Exception as e:
             logger.exception(e)
         await asyncio.sleep(request_delay)
-    logger.debug('Scan done!')
+    logger.debug("Scan done!")
     return result
 
 
-def filter_videos_by_time(vs: list[YouTubeVideo],
-                          last_time: datetime) -> list[YouTubeVideo]:
+def filter_videos_by_time(
+    vs: list[YouTubeVideo],
+    last_time: datetime,
+) -> list[YouTubeVideo]:
     return list(filter(lambda v: v.creation_time >= last_time, vs))
 
 
-async def filter_videos_by_id(videos: list[YouTubeVideo],
-                              last_ids: frozenset[str]) -> list[YouTubeVideo]:
+async def filter_videos_by_id(
+    videos: list[YouTubeVideo],
+    last_ids: frozenset[str],
+) -> list[YouTubeVideo]:
     result = []
     for video in videos:
         if video.original_id not in last_ids:
@@ -211,18 +201,20 @@ async def filter_videos_by_id(videos: list[YouTubeVideo],
     return result
 
 
-async def filter_streams_by_id(streams: list[YouTubeVideo],
-                               last_ids: frozenset[str],
-                               session: AsyncSession) -> list[YouTubeVideo]:
+async def filter_streams_by_id(
+    streams: list[YouTubeVideo],
+    last_ids: frozenset[str],
+    session: AsyncSession,
+) -> list[YouTubeVideo]:
     result = []
     for stream in streams:
         if stream.original_id not in last_ids:
             if exist_stream := await get_video_by_original_id(
-                    stream.original_id,
-                    session
+                stream.original_id,
+                session,
             ):
-                if 'LIVE' in (stream.style, exist_stream.style):
-                    exist_stream.style = 'LIVE'
+                if "LIVE" in (stream.style, exist_stream.style):
+                    exist_stream.style = "LIVE"
                     exist_stream.live_24_7 = True
                     await session.merge(exist_stream)
             else:
@@ -236,13 +228,15 @@ async def filter_data_by_time(scan_data: ScanData) -> ScanData:
     for channel, data in scan_data.items():
         new_data[channel] = YouTubeChannelData(
             videos=filter_videos_by_time(data.videos, last_time),
-            streams=filter_videos_by_time(data.streams, last_time)
+            streams=filter_videos_by_time(data.streams, last_time),
         )
     return new_data
 
 
-async def filter_data_by_id(scan_data: ScanData,
-                            session: AsyncSession) -> ScanData:
+async def filter_data_by_id(
+    scan_data: ScanData,
+    session: AsyncSession,
+) -> ScanData:
     new_data: ScanData = {}
     for channel, data in scan_data.items():
         assert channel.id is not None
@@ -250,19 +244,19 @@ async def filter_data_by_id(scan_data: ScanData,
             last_video_ids = await get_last_video_ids(
                 channel.id,  # noqa
                 LAST_DAYS_IN_DB,
-                session
+                session,
             )
             videos = await filter_videos_by_id(
                 data.videos,
-                last_video_ids
+                last_video_ids,
             )
             streams = await filter_streams_by_id(
                 data.streams,
                 last_video_ids,
-                session
+                session,
             )
             new_data[channel] = YouTubeChannelData(
                 videos=videos,
-                streams=streams
+                streams=streams,
             )
     return new_data

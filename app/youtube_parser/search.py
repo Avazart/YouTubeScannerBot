@@ -1,7 +1,7 @@
 from collections import deque
-from typing import Sequence, Mapping, Callable, Any, TypeAlias,  Generator
+from typing import Sequence, Mapping, Callable, Any, TypeAlias, Iterator
 
-KiValueGen: TypeAlias = Generator[tuple[Any, Any], None, None]
+KiValueIt: TypeAlias = Iterator[tuple[Any, Any]]
 Callback = Callable[[list, str | int, Any], tuple[bool, Any]]
 
 
@@ -16,26 +16,28 @@ class NotFound:
 NOT_FOUND = NotFound()
 
 
-def get(root: Sequence | Mapping,
-        *path: str | int,
-        default=NOT_FOUND) -> Any | NotFound:
+def get(
+    root: Sequence | Mapping,
+    *path: str | int,
+    default=NOT_FOUND,
+) -> Any | NotFound:
     for e in path:
-        if type(e) is int:
+        if isinstance(e, int):
             if isinstance(root, Sequence) and e < len(root):
                 root = root[e]
             else:
                 return default
-        elif type(e) is str:
+        elif isinstance(e, str):
             if isinstance(root, Mapping) and e in root:
                 root = root[e]
             else:
                 return default
         else:
-            raise SearchError('Wrong path!')
+            raise SearchError("Wrong path!")
     return root
 
 
-def _iterate_map_or_seq(obj: Sequence | Mapping) -> KiValueGen:
+def _iterate_map_or_seq(obj: Sequence | Mapping) -> KiValueIt:
     if isinstance(obj, Mapping):
         for key, value in obj.items():
             yield key, value
@@ -43,16 +45,17 @@ def _iterate_map_or_seq(obj: Sequence | Mapping) -> KiValueGen:
         for index, value in enumerate(obj):
             yield index, value
     else:
-        raise SearchError('Type not supported!')
+        raise SearchError("Type not supported!")
 
 
 def _is_composite_object(obj) -> bool:
-    return isinstance(obj, Mapping) or \
-           (isinstance(obj, Sequence) and not isinstance(obj, str))
+    return isinstance(obj, Mapping) or (
+        isinstance(obj, Sequence) and not isinstance(obj, str)
+    )
 
 
 def find_first(root: Sequence | Mapping, callback: Callback) -> Any:
-    q: deque[Sequence | Mapping] = deque([([], root), ])
+    q: deque[Sequence | Mapping] = deque([([], root)])
     while q:
         path, obj = q.popleft()
         if _is_composite_object(obj):
@@ -62,12 +65,12 @@ def find_first(root: Sequence | Mapping, callback: Callback) -> Any:
                     return result
                 else:
                     if _is_composite_object(value):
-                        q.append((path + [ki, ], value))
-    raise SearchError('Not found!')
+                        q.append((path + [ki], value))
+    raise SearchError("Not found!")
 
 
 def find_all(root: Sequence | Mapping, callback: Callback) -> list:
-    q: deque[Sequence[Any] | Mapping[Any, Any]] = deque([([], root), ])
+    q: deque[Sequence[Any] | Mapping[Any, Any]] = deque([([], root)])
     results = []
     while q:
         path, obj = q.popleft()
@@ -78,7 +81,7 @@ def find_all(root: Sequence | Mapping, callback: Callback) -> list:
                     results.append(result)
                 else:
                     if _is_composite_object(value):
-                        q.append((path + [ki, ], value))
+                        q.append((path + [ki], value))
     return results
 
 
@@ -86,11 +89,13 @@ class ByKey:
     def __init__(self, key: str):
         self._key = key
 
-    def __call__(self,
-                 path: list,
-                 ki: str | int,
-                 value: Any) -> tuple[bool, Any]:
-        if (type(ki) is not int) and ki == self._key:
+    def __call__(
+        self,
+        path: list,
+        ki: str | int,
+        value: Any,
+    ) -> tuple[bool, Any]:
+        if (not isinstance(ki, int)) and ki == self._key:
             return True, value
         return False, None  # found, result_value
 

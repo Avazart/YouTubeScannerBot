@@ -9,12 +9,14 @@ def init_win_console():
         _fields_ = [("X", ctypes.c_short), ("Y", ctypes.c_short)]
 
     class ConsoleFontInfoEx(ctypes.Structure):
-        _fields_ = [("cbSize", ctypes.c_ulong),
-                    ("nFont", ctypes.c_ulong),
-                    ("dwFontSize", COORD),
-                    ("FontFamily", ctypes.c_uint),
-                    ("FontWeight", ctypes.c_uint),
-                    ("FaceName", ctypes.c_wchar * LF_FACE_SIZE)]
+        _fields_ = [
+            ("cbSize", ctypes.c_ulong),
+            ("nFont", ctypes.c_ulong),
+            ("dwFontSize", COORD),
+            ("FontFamily", ctypes.c_uint),
+            ("FontWeight", ctypes.c_uint),
+            ("FaceName", ctypes.c_wchar * LF_FACE_SIZE),
+        ]
 
     font = ConsoleFontInfoEx()
     font.cbSize = ctypes.sizeof(ConsoleFontInfoEx)
@@ -27,4 +29,5 @@ def init_win_console():
 
     handle = ctypes.windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
     ctypes.windll.kernel32.SetCurrentConsoleFontEx(
-        handle, ctypes.c_long(False), ctypes.pointer(font))
+        handle, ctypes.c_long(False), ctypes.pointer(font)
+    )

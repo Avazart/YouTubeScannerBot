@@ -49,16 +49,16 @@ class StorageKey:
     user_id: int
 
     @staticmethod
-    def from_message(m: aiogram.types.Message) -> 'StorageKey':
+    def from_message(m: aiogram.types.Message) -> "StorageKey":
         assert m.from_user
         return StorageKey(m.chat.id, get_thread_id(m), m.from_user.id)
 
     @staticmethod
-    def from_callback_query(q: aiogram.types.CallbackQuery) -> 'StorageKey':
+    def from_callback_query(q: aiogram.types.CallbackQuery) -> "StorageKey":
         assert q.message and q.message.chat and q.from_user
-        return StorageKey(q.message.chat.id,
-                          get_thread_id(q.message),
-                          q.from_user.id)
+        return StorageKey(
+            q.message.chat.id, get_thread_id(q.message), q.from_user.id
+        )
 
 
 class Storage:
@@ -74,9 +74,9 @@ class Storage:
         async with self._lock:
             self._storage[key].data = copy.deepcopy(data)
 
-    async def set_state(self,
-                        key: StorageKey,
-                        state: StateType = None) -> None:
+    async def set_state(
+        self, key: StorageKey, state: StateType = None
+    ) -> None:
         async with self._lock:
             if isinstance(state, State):
                 self._storage[key].state = state.state
@@ -102,7 +102,7 @@ class Status(IntEnum):
     OFF = 1
     BAN = 2
 
-    def next(self) -> 'Status':
+    def next(self) -> "Status":
         match self:
             case Status.ON:
                 return Status.OFF
@@ -127,44 +127,45 @@ class Keyboard(IntEnum):
 
 # CallbackData
 
-class NavigationData(CallbackData, prefix='navigation'):
+
+class NavData(CallbackData, prefix="navigation"):
     keyboard: Keyboard
 
 
-class CloseData(CallbackData, prefix='close'):
+class CloseData(CallbackData, prefix="close"):
     pass
 
 
-class ChannelData(CallbackData, prefix='channel'):
+class ChannelData(CallbackData, prefix="channel"):
     id: int
     enabled: bool
 
 
-class PageData(CallbackData,  prefix='page'):
+class PageData(CallbackData, prefix="page"):
     offset: int
     keyboard: Keyboard
 
 
-class CategoryFilterData(CallbackData, prefix='category'):
+class CategoryFilterData(CallbackData, prefix="category"):
     id: int
 
 
-class AttachCategoryData(CallbackData, prefix='attach_category'):
+class AttachCategoryData(CallbackData, prefix="attach_category"):
     channel_id: int  # id in database
 
 
-class YTChannelCategoryData(CallbackData, prefix='yt_channel_category'):
+class YTChannelCategoryData(CallbackData, prefix="yt_channel_category"):
     category_id: int
     channel_id: int
     enabled: bool
 
 
-class TgData(CallbackData, prefix='tg'):
+class TgData(CallbackData, prefix="tg"):
     chat_id: int
     thread_id: Optional[int]
 
 
-class StatusData(CallbackData, prefix='status'):
+class StatusData(CallbackData, prefix="status"):
     chat_id: int
     thread_id: Optional[int]
     status: Status

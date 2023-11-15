@@ -9,21 +9,21 @@ from sqlalchemy import (
     Boolean,
     ForeignKey,
     UniqueConstraint,
-    BigInteger
+    BigInteger,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
     MappedAsDataclass,
     Mapped,
-    mapped_column
+    mapped_column,
 )
 
 from ..bot_ui.bot_types import Status
 
-YT_VIDEO_URL_FMT = 'https://www.youtube.com/watch?v={id}'
-YT_CHANNEL_URL_FMT = 'https://www.youtube.com/channel/{id}'
-YT_CHANNEL_CANONICAL_URL_FMT = 'https://www.youtube.com{base_url}'
-TG_URL_FMT = 'https://t.me/{user_name}'
+YT_VIDEO_URL_FMT = "https://www.youtube.com/watch?v={id}"
+YT_CHANNEL_URL_FMT = "https://www.youtube.com/channel/{id}"
+YT_CHANNEL_CANONICAL_URL_FMT = "https://www.youtube.com{base_url}"
+TG_URL_FMT = "https://t.me/{user_name}"
 
 
 class Base(DeclarativeBase):
@@ -33,10 +33,10 @@ class Base(DeclarativeBase):
 class YouTubeChannel(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "YouTubeChannels"
 
-    id: Mapped[int] = mapped_column(
+    id: Mapped[int | None] = mapped_column(
         init=False,
         primary_key=True,
-        autoincrement=True
+        autoincrement=True,
     )
     original_id: Mapped[str] = mapped_column(
         String,
@@ -67,35 +67,35 @@ class TelegramChat(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
 
     original_id: Mapped[int] = mapped_column(
         BigInteger,
-        primary_key=True
+        primary_key=True,
     )
     type: Mapped[str] = mapped_column(
         String,
-        default=None
+        default=None,
     )
     title: Mapped[str] = mapped_column(
         String,
         default=None,
-        nullable=True
+        nullable=True,
     )
     user_name: Mapped[str] = mapped_column(
         String,
-        default=None
+        default=None,
     )
     first_name: Mapped[str] = mapped_column(
         String,
         default=None,
-        nullable=True
+        nullable=True,
     )
     last_name: Mapped[str] = mapped_column(
         String,
         default=None,
-        nullable=True
+        nullable=True,
     )
     is_creator: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
-        nullable=True
+        nullable=True,
     )
     status: Mapped[int] = mapped_column(
         default=int(Status.ON),
@@ -103,20 +103,24 @@ class TelegramChat(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
 
     @property
     def url(self) -> Optional[str]:
-        return (TG_URL_FMT.format(user_name=self.user_name)
-                if self.user_name
-                else None)
+        return (
+            TG_URL_FMT.format(user_name=self.user_name)
+            if self.user_name
+            else None
+        )
 
     @staticmethod
-    def from_aiogram_chat(chat: aiogram.types.Chat) -> 'TelegramChat':
-        return TelegramChat(original_id=chat.id,
-                            type=chat.type,
-                            title=chat.title,
-                            user_name=chat.username,
-                            first_name=chat.first_name,
-                            last_name=chat.last_name,
-                            is_creator=None,
-                            status=Status.ON)
+    def from_aiogram_chat(chat: aiogram.types.Chat) -> "TelegramChat":
+        return TelegramChat(
+            original_id=chat.id,
+            type=chat.type,
+            title=chat.title,
+            user_name=chat.username,
+            first_name=chat.first_name,
+            last_name=chat.last_name,
+            is_creator=None,
+            status=Status.ON,
+        )
 
     def __hash__(self):
         return hash(self.original_id)
@@ -130,7 +134,7 @@ class TelegramThread(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
-        autoincrement=True
+        autoincrement=True,
     )
     original_id: Mapped[int] = mapped_column(
         BigInteger,
@@ -139,20 +143,20 @@ class TelegramThread(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         ForeignKey(
             TelegramChat.original_id,
             ondelete="CASCADE",
-            onupdate='CASCADE'
+            onupdate="CASCADE",
         ),
     )
     title: Mapped[str] = mapped_column(
         String,
         default=None,
-        nullable=True
+        nullable=True,
     )
 
     __table_args__ = (
         UniqueConstraint(
-            'original_id',
-            'original_chat_id',
-            name='unique_thread'
+            "original_id",
+            "original_chat_id",
+            name="unique_thread",
         ),
     )
 
@@ -160,8 +164,10 @@ class TelegramThread(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return hash((self.original_chat_id, self.original_id))
 
     def __eq__(self, other):
-        return ((self.original_chat_id, self.original_id) ==
-                (other.chat_id, other.original_id))
+        return (self.original_chat_id, self.original_id) == (
+            other.chat_id,
+            other.original_id,
+        )
 
 
 @dataclass
@@ -173,7 +179,7 @@ class Destination:
     def url(self) -> Optional[str]:
         if chart_url := self.chat.url:
             if self.thread:
-                return f'{chart_url}/{self.thread.original_id}'
+                return f"{chart_url}/{self.thread.original_id}"
             else:
                 return chart_url
         return None
@@ -188,8 +194,7 @@ class Destination:
         return hash((self.chat, self.thread))
 
     def __eq__(self, other):
-        return ((self.chat, self.thread) ==
-                (other.chat, other.thread))
+        return (self.chat, self.thread) == (other.chat, other.thread)
 
 
 class Forwarding(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
@@ -204,31 +209,31 @@ class Forwarding(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         ForeignKey(
             YouTubeChannel.id,
             ondelete="CASCADE",
-            onupdate='CASCADE'
+            onupdate="CASCADE",
         ),
     )
     telegram_chat_id: Mapped[int] = mapped_column(
         ForeignKey(
             TelegramChat.original_id,
             ondelete="CASCADE",
-            onupdate='CASCADE'
+            onupdate="CASCADE",
         ),
     )
     telegram_thread_id: Mapped[int] = mapped_column(
         ForeignKey(
             TelegramThread.id,
             ondelete="CASCADE",
-            onupdate='CASCADE'
+            onupdate="CASCADE",
         ),
-        nullable=True
+        nullable=True,
     )
 
     __table_args__ = (
         UniqueConstraint(
-            'youtube_channel_id',
-            'telegram_chat_id',
-            'telegram_thread_id',
-            name='unique_forwarding'
+            "youtube_channel_id",
+            "telegram_chat_id",
+            "telegram_thread_id",
+            name="unique_forwarding",
         ),
     )
 
@@ -242,7 +247,7 @@ class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     id: Mapped[int] = mapped_column(
         init=False,
         primary_key=True,
-        autoincrement=True
+        autoincrement=True,
     )
     original_id: Mapped[str] = mapped_column(
         String,
@@ -254,38 +259,36 @@ class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     channel_id: Mapped[int] = mapped_column(
         ForeignKey(
             YouTubeChannel.id,
-            ondelete='CASCADE',
-            onupdate='CASCADE'
+            ondelete="CASCADE",
+            onupdate="CASCADE",
         ),
-        default=None
+        default=None,
     )
     title: Mapped[str] = mapped_column(
         String,
         default=None,
-        nullable=True
+        nullable=True,
     )
     style: Mapped[str] = mapped_column(
         String,
         default=None,
-        nullable=True
+        nullable=True,
     )
     time_ago: Mapped[str] = mapped_column(
         String,
         default=None,
-        nullable=True
+        nullable=True,
     )
     creation_time: Mapped[datetime] = mapped_column(
         DateTime,
         default=None,
-        nullable=True
+        nullable=True,
     )
     live_24_7: Mapped[bool] = mapped_column(
         Boolean,
-        default=False
+        default=False,
     )
-    url = property(
-        lambda self: YT_VIDEO_URL_FMT.format(id=self.original_id)
-    )
+    url = property(lambda self: YT_VIDEO_URL_FMT.format(id=self.original_id))
 
     def __hash__(self):
         return hash(self.original_id)
@@ -300,15 +303,13 @@ class Category(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     id: Mapped[int] = mapped_column(
         init=False,
         primary_key=True,
-        autoincrement=True
+        autoincrement=True,
     )
     name: Mapped[str] = mapped_column(
         String,
         unique=True,
     )
-    order: Mapped[int] = mapped_column(
-        autoincrement=True
-    )
+    order: Mapped[int] = mapped_column(autoincrement=True)
 
     def __hash__(self):
         return hash(self.id)
@@ -323,28 +324,28 @@ class YTChannelCategory(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     id: Mapped[int] = mapped_column(
         init=False,
         primary_key=True,
-        autoincrement=True
+        autoincrement=True,
     )
     category_id: Mapped[int] = mapped_column(
         ForeignKey(
             Category.id,
             ondelete="CASCADE",
-            onupdate='CASCADE'
+            onupdate="CASCADE",
         )
     )
     channel_id: Mapped[int] = mapped_column(
         ForeignKey(
             YouTubeChannel.id,
             ondelete="CASCADE",
-            onupdate='CASCADE'
+            onupdate="CASCADE",
         )
     )
 
     __table_args__ = (
         UniqueConstraint(
-            'category_id',
-            'channel_id',
-            name='unique_yt_tag'
+            "category_id",
+            "channel_id",
+            name="unique_yt_tag",
         ),
     )
 
@@ -352,5 +353,7 @@ class YTChannelCategory(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return hash((self.category_id, self.channel_id))
 
     def __eq__(self, other):
-        return ((self.category_id, self.channel_id) ==
-                (other.category_id, other.channel_id))
+        return (self.category_id, self.channel_id) == (
+            other.category_id,
+            other.channel_id,
+        )

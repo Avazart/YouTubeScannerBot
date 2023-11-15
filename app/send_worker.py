@@ -20,7 +20,7 @@ async def try_send_message(m: ScannerMessage, settings: Settings, bot: Bot):
                 chat_id=m.destination.chat.original_id,
                 text=fmt_message(m),
                 message_thread_id=m.destination.get_thread_original_id(),
-                parse_mode='HTML'
+                parse_mode="HTML",
             )
             await asyncio.sleep(settings.message_delay)
             return
@@ -28,7 +28,7 @@ async def try_send_message(m: ScannerMessage, settings: Settings, bot: Bot):
             logger.warning(e)
             await asyncio.sleep(settings.error_delay)
     else:
-        logger.error('Max limit of attempt count')
+        logger.error("Max limit of attempt count")
 
 
 async def send_worker(settings: Settings, bot: Bot):
@@ -37,7 +37,7 @@ async def send_worker(settings: Settings, bot: Bot):
             _, data = await redis_client.blpop(settings.redis_queue)
             group: MessageGroup = pickle.loads(data)
             failed: MessageGroup = []
-            logger.info('Sending ...')
+            logger.info("Sending ...")
             for m in group:
                 logger.info(fmt_pair(m.youtube_video, m.destination))
                 try:
@@ -45,9 +45,9 @@ async def send_worker(settings: Settings, bot: Bot):
                         await try_send_message(m, settings, bot)
                 except TelegramNetworkError as e:
                     logger.error(
-                        'Send error:\n'
-                        f'{fmt_pair(m.youtube_video, m.destination)}\n'
-                        f'{e} {type(e)}'
+                        "Send error:\n"
+                        f"{fmt_pair(m.youtube_video, m.destination)}\n"
+                        f"{e} {type(e)}"
                     )
                     failed.append(m)
                     await asyncio.sleep(settings.error_delay)

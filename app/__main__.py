@@ -15,11 +15,11 @@ from .run import run
 
 def init_logging(log_dir: Path, mode: str) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_config_path = Path(f'log_configs/{mode}.json')
+    log_config_path = Path(f"log_configs/{mode}.json")
     with open(log_config_path) as file:
         config = json.load(file)
-        file_handler = config['handlers']['FileHandler']
-        file_handler['filename'] = str(log_dir / 'log.txt')
+        file_handler = config["handlers"]["FileHandler"]
+        file_handler["filename"] = str(log_dir / "log.txt")
         dictConfig(config)
 
 
@@ -27,7 +27,7 @@ def main() -> int:
     colorama.init()
     random.seed()
 
-    if sys.platform.startswith('win'):
+    if sys.platform.startswith("win"):
         from .win_console_utils import init_win_console
 
         init_win_console()
@@ -43,16 +43,16 @@ def main() -> int:
     init_logging(settings.log_dir, settings.mode)
     logger = getLogger(Path(__file__).parent.name)
     try:
-        logger.info('Start work ...')
+        logger.info("Start work ...")
         asyncio.run(run(settings))
-        logger.info('Work finished.')
+        logger.info("Work finished.")
     except KeyboardInterrupt:  # Ctrl+C
-        logger.warning('Interrupted by user.')
+        logger.warning("Interrupted by user.")
     except BaseException as e:
         logger.exception(f'Error occurred: "{e}"')
         return 1
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -3,7 +3,7 @@ from typing import Any, Final
 
 import tzlocal
 from aiogram.types import BotCommand
-from pydantic import BaseSettings, Field
+from pydantic.v1 import BaseSettings, Field
 
 MIN_MEMBER_COUNT: Final[int] = 10
 
@@ -17,15 +17,30 @@ MAX_CATEGORY_COUNT: Final[int] = 40
 MAX_TG_COUNT: Final[int] = 10
 
 MY_COMMANDS: Final[list] = [
-    BotCommand(command='/start', description='Start working with the bot'),
-    BotCommand(command='/menu', description='Open the menu'),
-    BotCommand(command='/add_channel', description='Add youtube channel'),
-    BotCommand(command='/remove_channel',
-               description='Remove youtube channel'),
-    BotCommand(command='/add_category',
-               description='Add category for youtube channel'),
-    BotCommand(command='/remove_category',
-               description='Remove category by name')
+    BotCommand(
+        command="/start",
+        description="Start working with the bot",
+    ),
+    BotCommand(
+        command="/menu",
+        description="Open the menu",
+    ),
+    BotCommand(
+        command="/add_channel",
+        description="Add youtube channel",
+    ),
+    BotCommand(
+        command="/remove_channel",
+        description="Remove youtube channel",
+    ),
+    BotCommand(
+        command="/add_category",
+        description="Add category for youtube channel",
+    ),
+    BotCommand(
+        command="/remove_category",
+        description="Remove category by name",
+    ),
 ]
 
 
@@ -34,7 +49,7 @@ def _local_tz():
 
 
 def _parse_ids(s: str) -> frozenset[int]:
-    return frozenset(map(int, s.split(',')))
+    return frozenset(map(int, s.split(",")))
 
 
 class Settings(BaseSettings):
@@ -52,10 +67,10 @@ class Settings(BaseSettings):
     redis_url: str
     redis_queue: str = "youtube_scanner:queue"
 
-    mode: str = 'dev'
+    mode: str = "dev"
     without_sending: bool = False
 
-    cron_schedule: str = '*/30 * * * *'
+    cron_schedule: str = "*/30 * * * *"
     request_delay: float = 1
     send_delay: float = 5 * 60
     error_delay: float = 65
@@ -64,15 +79,16 @@ class Settings(BaseSettings):
     tz: str = Field(default_factory=_local_tz)
     check_migrations: bool = False
     parse_tags: bool = False
-    db_url_fmt = ("postgresql+asyncpg://{user}:{password}"
-                  "@{host}:{port}/{db_name}")
+    db_url_fmt = (
+        "postgresql+asyncpg://{user}:{password}" "@{host}:{port}/{db_name}"
+    )
 
     class Config:
         @classmethod
         def parse_env_var(cls, field_name: str, raw_val: str) -> Any:
-            if field_name == 'bot_admin_ids':
+            if field_name == "bot_admin_ids":
                 return _parse_ids(raw_val)
-            return getattr(cls, 'json_loads')(raw_val)
+            return getattr(cls, "json_loads")(raw_val)
 
     @property
     def database_url(self):
@@ -81,5 +97,5 @@ class Settings(BaseSettings):
             password=self.db_password,
             host=self.db_host,
             port=self.db_port,
-            db_name=self.db_name
+            db_name=self.db_name,
         )
