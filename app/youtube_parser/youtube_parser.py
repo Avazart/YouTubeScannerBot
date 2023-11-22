@@ -81,20 +81,33 @@ def _has_no_video(content_0: dict) -> bool:
     return text == "This channel has no videos."
 
 
+def _has_no_video2(renderer: dict) -> bool:
+    text = search.find_first(
+        renderer, search.BySubPath("description", "simpleText")
+    )
+    if text is search.NotFound:
+        return False
+    return text == "This channel has no videos."
+
+
 def _parse_section_list_renderer(renderer: dict) -> list[dict]:
     videos = []
-    content_0 = search.find_first(
-        renderer,
-        search.BySubPath("itemSectionRenderer", "contents", 0),
-    )
     items = []
     try:
-        items = search.find_first(
-            content_0,
-            search.BySubPath("gridRenderer", "items"),
+        content_0 = search.find_first(
+            renderer,
+            search.BySubPath("itemSectionRenderer", "contents", 0),
         )
+        try:
+            items = search.find_first(
+                content_0,
+                search.BySubPath("gridRenderer", "items"),
+            )
+        except search.SearchError as e:
+            if not _has_no_video(content_0):
+                raise e
     except search.SearchError as e:
-        if not _has_no_video(content_0):
+        if not _has_no_video2(renderer):
             raise e
 
     for i, item in enumerate(items):
