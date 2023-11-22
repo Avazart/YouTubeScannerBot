@@ -11,11 +11,7 @@ services:
             WITHOUT_SENDING: $WITHOUT_SENDING
             PARSE_TAGS: $PARSE_TAGS
             LOG_DIR: $LOG_DIR
-            PGUSER: $PGUSER
-            PGPASSWORD: $PGPASSWORD
-            PGDATABASE: $PGDATABASE
-            PGHOST: $PGHOST
-            PGPORT: $PGPORT
+            DATABASE_URL: $DATABASE_URL
             BOT_TOKEN: $BOT_TOKEN
             BOT_ADMIN_IDS: $BOT_ADMIN_IDS
             CRON_SCHEDULE: $CRON_SCHEDULE

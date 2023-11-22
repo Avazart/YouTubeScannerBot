@@ -1,9 +1,9 @@
 export ENV_FILE=.env.prod
 
-# Читаємо .env файл і встановлюємо змінні оточення
-while IFS= read -r line; do
-   line=$(echo "$line" | sed -e 's/[[:space:]]*$//')
-   export "$line"
-done <  $ENV_FILE
+echo "Set environment ..."
 
-export BACKUP_DIR="${APP_DATA}/backups"
+while IFS= read -r line; do
+   #line=$(echo "$line" | sed -e 's/[[:space:]]*$//')
+   #echo "$line"
+   export "$line"
+done < <(python3 ./scripts/get_ext_env.py $ENV_FILE)

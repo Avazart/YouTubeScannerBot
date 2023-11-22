@@ -162,10 +162,10 @@ class YTChannelCategoryData(CallbackData, prefix="yt_channel_category"):
 
 class TgData(CallbackData, prefix="tg"):
     chat_id: int
-    thread_id: Optional[int]
+    thread_id: int | None
 
 
 class StatusData(CallbackData, prefix="status"):
     chat_id: int
-    thread_id: Optional[int]
+    thread_id: int | None
     status: Status

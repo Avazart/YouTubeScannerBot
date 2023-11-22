@@ -3,7 +3,7 @@ from typing import Any, Final
 
 import tzlocal
 from aiogram.types import BotCommand
-from pydantic.v1 import BaseSettings, Field
+from pydantic import BaseSettings, Field
 
 MIN_MEMBER_COUNT: Final[int] = 10
 
@@ -58,12 +58,7 @@ class Settings(BaseSettings):
 
     log_dir: Path
 
-    db_password: str = Field(env="PGPASSWORD")
-    db_user: str = Field("postgres", env="PGUSER")
-    db_name: str = Field("postgres", env="PGDATABASE")
-    db_host: str = Field("localhost", env="PGHOST")
-    db_port: int = Field(5432, env="PGPORT")
-
+    database_url: str
     redis_url: str
     redis_queue: str = "youtube_scanner:queue"
 
@@ -79,9 +74,6 @@ class Settings(BaseSettings):
     tz: str = Field(default_factory=_local_tz)
     check_migrations: bool = False
     parse_tags: bool = False
-    db_url_fmt = (
-        "postgresql+asyncpg://{user}:{password}" "@{host}:{port}/{db_name}"
-    )
 
     class Config:
         @classmethod
@@ -89,13 +81,3 @@ class Settings(BaseSettings):
             if field_name == "bot_admin_ids":
                 return _parse_ids(raw_val)
             return getattr(cls, "json_loads")(raw_val)
-
-    @property
-    def database_url(self):
-        return self.db_url_fmt.format(
-            user=self.db_user,
-            password=self.db_password,
-            host=self.db_host,
-            port=self.db_port,
-            db_name=self.db_name,
-        )

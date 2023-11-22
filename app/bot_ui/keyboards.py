@@ -281,8 +281,10 @@ def _tg_objects_buttons(
                 text=_fmt_tg_object(tg),
                 callback_data=data.pack(),
             )
+        # FIXME:
         tg_button = InlineKeyboardButton(
-            text="YouTube channels",
+            text=f"YouTube channels "
+            f"({tg.chat.original_id}/{tg.get_thread_original_id()})",
             callback_data=data.pack(),
         )
         data2 = StatusData(

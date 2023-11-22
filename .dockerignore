@@ -1,5 +1,7 @@
 app_data/
 logs/
+scripts/
+tests/
 
 # Environments
 .env

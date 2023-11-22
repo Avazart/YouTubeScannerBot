@@ -33,6 +33,7 @@ from .format_utils import fmt_scan_data, fmt_groups, fmt_channel
 from .message_utils import get_tg_to_yt_videos, make_message_groups
 from .send_worker import send_worker
 from .settings import Settings, LAST_DAYS_IN_DB, LAST_DAYS_ON_PAGE, MY_COMMANDS
+from .youtube_parser import search
 from .youtube_utils import (
     get_channel_data,
     ScanData,
@@ -75,13 +76,13 @@ async def run(settings: Settings) -> None:
 
     chat_admin_filter = or_f(
         PrivateChatFilter(),  # F.chat.type == 'private' ?
-        bot_admin_filter,
-        ChatAdminFilter(),
+        or_f(bot_admin_filter, ChatAdminFilter()),
     )
     chat_admins.router.message.filter(chat_admin_filter)
     chat_admins.router.callback_query.filter(chat_admin_filter)
 
-    dp.include_routers(chat_admins.router, bot_admins.router)
+    dp.include_router(bot_admins.router)
+    dp.include_router(chat_admins.router)
 
     context = BotContext(settings, Storage(), session_maker)
     logger.info("Create scheduler ...")
@@ -148,7 +149,9 @@ async def update(session_maker, settings: Settings) -> None:
             logger.info("Make message groups ...")
             tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
             groups = make_message_groups(
-                tg_to_yt_videos, youtube_channels, tags
+                tg_to_yt_videos,
+                youtube_channels,
+                tags,
             )
             logger.info("Messages:\n" + fmt_groups(groups, " " * 4))
 
@@ -175,7 +178,11 @@ async def scan_youtube_channels(
         try:
             result[channel] = await get_channel_data(channel)
         except (aiohttp.ClientConnectorError, asyncio.TimeoutError) as e:
-            logger.error(f"Scan error {channel.url}\n{type(e)}")
+            logger.error(
+                f"Scan error {channel.title}\n{channel.url}\n{type(e)}"
+            )
+        except search.SearchError:
+            logger.exception(f"Search error {channel.title}\n{channel.url}")
         except Exception as e:
             logger.exception(e)
         await asyncio.sleep(request_delay)

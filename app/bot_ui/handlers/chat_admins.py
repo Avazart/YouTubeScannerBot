@@ -368,7 +368,6 @@ async def channel_checked(
                         tg.get_thread_id(),
                         session,
                     )
-                # async with context.SessionMaker.begin() as session:
                 keyboard = await build_channel_keyboard(
                     tg.chat.original_id,
                     tg.get_thread_original_id(),
