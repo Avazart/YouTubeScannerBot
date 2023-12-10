@@ -3,11 +3,11 @@ from typing import Any, Final
 
 import tzlocal
 from aiogram.types import BotCommand
-from pydantic import BaseSettings, Field
+from pydantic.v1 import BaseSettings, Field
 
 MIN_MEMBER_COUNT: Final[int] = 10
-
 LAST_DAYS_ON_PAGE: Final[int] = 2
+
 LAST_DAYS_IN_DB: Final[int] = 30
 
 KEYBOARD_COLUMN_COUNT: Final[int] = 4

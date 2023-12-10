@@ -1,5 +1,7 @@
-aiogram==3.0.0b6
-pydantic==1.10.13
+aiogram~=3.2.0
+pydantic~=2.5.2
+aiohttp~=3.9.1
+aiofiles~=23.2.1
 colorama~=0.4.4
 colorlog~=6.7.0
 lxml~=4.9.1
