@@ -1,10 +1,11 @@
 import logging
 
-from aiogram import Router
+import aiohttp
+from aiogram import Router, F
 from aiogram.filters import Command, CommandObject
 from aiogram.types import CallbackQuery, Message
 
-from ..bot_types import BotContext, StorageKey
+from ..bot_types import BotContext, StorageKey, Data
 from ..bot_types import StatusData, Keyboard, NavData
 from ..keyboards import (
     AttachCategoryData,
@@ -12,10 +13,12 @@ from ..keyboards import (
     build_telegram_tg_keyboard,
 )
 from ..keyboards import build_attach_categories_keyboard
+from ...auxiliary_utils import split_string
 from ...database.models import YouTubeChannel, Category
 from ...database.utils import (
     delete_category_by_name,
     delete_channel_by_original_id,
+    get_yt_channel_id,
 )
 from ...database.utils import (
     get_yt_channel_by_id,
@@ -29,6 +32,50 @@ from ...youtube_utils import get_channel_info
 
 logger = logging.getLogger(__name__)
 router = Router(name=__name__)
+
+
+@router.message(Command(commands="add_channel"))
+async def add_channel_command(
+    message: Message,
+    command: CommandObject,
+    context: BotContext,
+):
+    if args := command.args and split_string(command.args, " ", 1):
+        try:
+            channel: YouTubeChannel = await get_channel_info(args[0])
+        except aiohttp.ClientError as e:
+            logger.error(f"{type(e)} {e}")
+            await message.reply("I can't add this channel!")
+            return
+
+        async with context.session_maker() as session:
+            channel.id = await get_yt_channel_id(channel.original_id, session)
+            already_exists = channel.id is not None
+            if already_exists:
+                await session.merge(channel)
+            else:
+                session.add(channel)
+            await session.commit()
+
+            result = (
+                "already exists!" if already_exists else "successfully added."
+            )
+            text = f'Channel "{channel.title}" {result}'
+            await message.reply(text)
+
+            key = StorageKey.from_message(message)
+            data = Data(channel_id=channel.id)
+            assert data.channel_id is not None
+            keyboard = await build_attach_categories_keyboard(
+                data.channel_id,
+                data.categories_offset,
+                MAX_CATEGORY_COUNT,
+                data.back_callback_data,
+                session,
+            )
+            text = f'Select categories for "{channel.title}"'
+            await message.answer(text, reply_markup=keyboard)
+            await context.storage.set_data(key, data)
 
 
 @router.message(Command(commands=["remove_channel"]))
@@ -88,15 +135,13 @@ async def remove_category(
         await message.reply("Category name missing!")
 
 
-@router.callback_query(AttachCategoryData.filter())
+@router.callback_query(AttachCategoryData.filter(), F.message.as_("message"))
 async def attach_categories_callback(
     query: CallbackQuery,
+    message: Message,
     callback_data: AttachCategoryData,
     context: BotContext,
 ):
-    if not query.message:
-        return
-
     key = StorageKey.from_callback_query(query)
     if data := await context.storage.get_data(key):
         data.back_callback_data = NavData(keyboard=Keyboard.YT_CHANNELS).pack()
@@ -114,22 +159,22 @@ async def attach_categories_callback(
                     data.back_callback_data,
                     session,
                 )
-                await query.message.edit_text(
+                await message.edit_text(
                     f'Select categories for "{channel.title}"',
                     reply_markup=keyboard,
                 )
                 await context.storage.set_data(key, data)
 
 
-@router.callback_query(YTChannelCategoryData.filter())
+@router.callback_query(
+    YTChannelCategoryData.filter(), F.message.as_("message")
+)
 async def yt_channel_category_button_pressed(
     query: CallbackQuery,
+    message: Message,
     callback_data: YTChannelCategoryData,
     context: BotContext,
 ):
-    if not query.message:
-        return
-
     key = StorageKey.from_callback_query(query)
     if data := await context.storage.get_data(key):
         async with context.session_maker.begin() as session:
@@ -152,18 +197,16 @@ async def yt_channel_category_button_pressed(
                 data.back_callback_data,
                 session,
             )
-            await query.message.edit_reply_markup(reply_markup=keyboard)
+            await message.edit_reply_markup(reply_markup=keyboard)
 
 
-@router.callback_query(StatusData.filter())
+@router.callback_query(StatusData.filter(), F.message.as_("message"))
 async def status_button_pressed(
     query: CallbackQuery,
+    message: Message,
     callback_data: StatusData,
     context: BotContext,
 ):
-    if not query.message:
-        return
-
     key = StorageKey.from_callback_query(query)
     if data := await context.storage.get_data(key):
         async with context.session_maker.begin() as session:
@@ -178,4 +221,4 @@ async def status_button_pressed(
                 data.back_callback_data,
                 session,
             )
-            await query.message.edit_reply_markup(reply_markup=keyboard)
+            await message.edit_reply_markup(reply_markup=keyboard)

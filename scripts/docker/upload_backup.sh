@@ -1,3 +1,5 @@
+#!/bin/bash
+
 cd ../..
 
 source ./scripts/docker/set_env.sh

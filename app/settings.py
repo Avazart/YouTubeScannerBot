@@ -8,7 +8,7 @@ from pydantic.v1 import BaseSettings, Field
 MIN_MEMBER_COUNT: Final[int] = 10
 LAST_DAYS_ON_PAGE: Final[int] = 2
 
-LAST_DAYS_IN_DB: Final[int] = 30
+LAST_DAYS_IN_DB: Final[int] = 90
 
 KEYBOARD_COLUMN_COUNT: Final[int] = 4
 

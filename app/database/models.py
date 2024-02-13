@@ -114,11 +114,11 @@ class TelegramChat(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return TelegramChat(
             original_id=chat.id,
             type=chat.type,
-            title=chat.title,
-            user_name=chat.username,
-            first_name=chat.first_name,
-            last_name=chat.last_name,
-            is_creator=None,
+            title=chat.title or "",
+            user_name=chat.username or "",
+            first_name=chat.first_name or "",
+            last_name=chat.last_name or "",
+            is_creator=False,
             status=Status.ON,
         )
 

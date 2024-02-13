@@ -1,3 +1,5 @@
+#!/bin/bash
+
 export ENV_FILE=.env.prod
 
 echo "Set environment ..."

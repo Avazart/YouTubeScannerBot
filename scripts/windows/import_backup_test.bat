@@ -9,8 +9,8 @@ echo.
 echo on
 "%PSQL_PATH%" -f "scripts\drop_schema.sql"
 "%PSQL_PATH%" -f %LAST_BACKUP_PATH%
-rem "%PSQL_PATH%" -f "scripts\drop_destinations.sql"
-rem "%PSQL_PATH%" -f "scripts\make_dev_db.sql"
+"%PSQL_PATH%" -f "scripts\drop_destinations.sql"
+"%PSQL_PATH%" -f "scripts\make_dev_db.sql"
 
 @echo off
 echo.

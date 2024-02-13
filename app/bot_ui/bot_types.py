@@ -119,7 +119,7 @@ class Status(IntEnum):
 
 class Keyboard(IntEnum):
     MAIN = auto()
-    CATEGORY_FILTER = auto()
+    CATEGORY = auto()
     YT_CHANNELS = auto()
     TG_OBJECTS = auto()
     ATTACH_CATEGORIES = auto()

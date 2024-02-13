@@ -5,22 +5,22 @@ from aiogram.client.bot import Bot
 from aiogram.filters import BaseFilter
 from aiogram.types import Message, CallbackQuery
 
+from app.bot_ui.bot_types import BotContext
+
 logger = logging.getLogger(__name__)
 
 
 class BotAdminFilter(BaseFilter):
-    def __init__(self, bot_admin_ids):
+    def __init__(self):
         super().__init__()
-        self._bot_admin_ids = bot_admin_ids
 
     async def __call__(
         self,
         mq: Message | CallbackQuery,
-        *args,
-        **kwargs,
+        context: BotContext,
     ) -> bool:
         if mq.from_user:
-            return mq.from_user.id in self._bot_admin_ids
+            return mq.from_user.id in context.settings.bot_admin_ids
         return False
 
 
@@ -63,24 +63,3 @@ class PrivateChatFilter(BaseFilter):
             chat = mq.message.chat
 
         return chat.type == "private"
-
-
-class TestFilter(BaseFilter):
-    def __init__(self):
-        super().__init__()
-
-    async def __call__(
-        self,
-        mq: Union[Message, CallbackQuery],
-        bot: Bot,
-    ) -> bool:
-        if isinstance(mq, Message):
-            chat = mq.chat
-        else:
-            if not mq.message:
-                logger.warning("mq.message is None")
-                return False
-            chat = mq.message.chat
-        logger.debug(f"{chat.type=}, {chat.id=}, {mq.from_user.id=}")
-
-        return True

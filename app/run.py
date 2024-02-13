@@ -70,7 +70,7 @@ async def run(settings: Settings) -> None:
     dp = Dispatcher()
     await bot.delete_webhook(drop_pending_updates=True)
 
-    bot_admin_filter = BotAdminFilter(settings.bot_admin_ids)
+    bot_admin_filter = BotAdminFilter()
     bot_admins.router.callback_query.filter(bot_admin_filter)
     bot_admins.router.message.filter(bot_admin_filter)
 

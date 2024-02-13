@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .bot_types import (
@@ -61,9 +61,7 @@ def build_main_keyboard(is_owner: bool) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(
                 text="YouTube channels",
-                callback_data=NavData(
-                    keyboard=Keyboard.CATEGORY_FILTER
-                ).pack(),
+                callback_data=NavData(keyboard=Keyboard.CATEGORY).pack(),
             )
         ]
     ]
@@ -176,7 +174,7 @@ def _categories_keyboard(
     if nav_buttons := _nav_buttons(
         prev_offset,
         next_offset,
-        Keyboard.CATEGORY_FILTER,
+        Keyboard.CATEGORY,
     ):
         buttons.append(nav_buttons)
     back_button = InlineKeyboardButton(
