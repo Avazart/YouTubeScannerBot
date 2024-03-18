@@ -1,10 +1,10 @@
 import math
-from typing import Optional, Sequence, Iterator
+from collections.abc import Iterator, Sequence
 
 import aiogram
 
 
-def get_thread_id(message: aiogram.types.Message) -> Optional[int]:
+def get_thread_id(message: aiogram.types.Message) -> int | None:
     return message.message_thread_id if message.is_topic_message else None
 
 

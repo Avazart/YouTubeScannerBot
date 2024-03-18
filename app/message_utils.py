@@ -1,7 +1,7 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
-from .database.models import Destination, YouTubeVideo, YouTubeChannel
+from .database.models import Destination, YouTubeChannel, YouTubeVideo
 from .database.utils import TgToYouTubeChannels
 from .youtube_utils import ScanData
 
@@ -40,7 +40,7 @@ def make_message_groups(
     yt_channel_ids = {c.id: c for c in youtube_channels}
     groups: MessageGroups = []
     values = tg_to_yt_videos.values()
-    max_count = max((len(videos) for videos in values)) if values else 0
+    max_count = max(len(videos) for videos in values) if values else 0
     for i in range(max_count):
         group: MessageGroup = []
         for tg, videos in tg_to_yt_videos.items():

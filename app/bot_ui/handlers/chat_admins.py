@@ -4,26 +4,36 @@ from aiogram import F, Router
 from aiogram.client.bot import Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
-from ..bot_types import BotContext, StorageKey, Status, Data
-from ..bot_types import TgData, Keyboard, CloseData, NavData
-from ..keyboards import (
-    ChannelData,
-    PageData,
-    CategoryFilterData,
-    build_category_filter_keyboard,
-    build_telegram_tg_keyboard,
-    build_channel_keyboard,
-    build_main_keyboard,
-)
-from ..keyboards import build_attach_categories_keyboard
 from ...auxiliary_utils import get_thread_id
 from ...database.models import TelegramChat, TelegramThread
-from ...database.utils import add_forwarding, delete_forwarding
-from ...database.utils import get_destinations
-from ...settings import MAX_TG_COUNT, MAX_CATEGORY_COUNT, MAX_YT_CHANNEL_COUNT
+from ...database.utils import (
+    add_forwarding,
+    delete_forwarding,
+    get_destinations,
+)
+from ...settings import MAX_CATEGORY_COUNT, MAX_TG_COUNT, MAX_YT_CHANNEL_COUNT
+from ..bot_types import (
+    BotContext,
+    CloseData,
+    Data,
+    Keyboard,
+    NavData,
+    Status,
+    StorageKey,
+    TgData,
+)
+from ..keyboards import (
+    CategoryFilterData,
+    ChannelData,
+    PageData,
+    build_attach_categories_keyboard,
+    build_category_filter_keyboard,
+    build_channel_keyboard,
+    build_main_keyboard,
+    build_telegram_tg_keyboard,
+)
 
 logger = logging.getLogger(__name__)
 router = Router(name=__name__)

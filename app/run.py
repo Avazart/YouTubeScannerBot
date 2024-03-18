@@ -4,9 +4,9 @@ import pickle
 import random
 import subprocess
 import sys
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from logging import getLogger
-from typing import Sequence
 
 import aiohttp
 from aiogram import Bot, Dispatcher
@@ -15,29 +15,29 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from redis.asyncio import from_url
 from sqlalchemy.ext.asyncio import (
-    create_async_engine,
     AsyncSession,
     async_sessionmaker,
+    create_async_engine,
 )
 
 from .bot_ui.bot_types import BotContext, Storage
-from .bot_ui.filers import ChatAdminFilter, BotAdminFilter, PrivateChatFilter
-from .bot_ui.handlers import chat_admins, bot_admins
+from .bot_ui.filers import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
+from .bot_ui.handlers import bot_admins, chat_admins
 from .database.models import YouTubeChannel, YouTubeVideo
 from .database.utils import (
     get_forwarding_data,
     get_last_video_ids,
     get_video_by_original_id,
 )
-from .format_utils import fmt_scan_data, fmt_groups, fmt_channel
+from .format_utils import fmt_channel, fmt_groups, fmt_scan_data
 from .message_utils import get_tg_to_yt_videos, make_message_groups
 from .send_worker import send_worker
-from .settings import Settings, LAST_DAYS_IN_DB, LAST_DAYS_ON_PAGE, MY_COMMANDS
+from .settings import LAST_DAYS_IN_DB, LAST_DAYS_ON_PAGE, MY_COMMANDS, Settings
 from .youtube_parser import search
 from .youtube_utils import (
-    get_channel_data,
     ScanData,
     YouTubeChannelData,
+    get_channel_data,
     get_video_tags,
 )
 
@@ -45,7 +45,7 @@ logger = getLogger(__name__)
 
 
 async def upgrade_database(attempts=6, delay=10) -> None:
-    for i in range(attempts):
+    for _ in range(attempts):
         cmd = [sys.executable, "-m", "alembic", "upgrade", "head"]
         r = subprocess.run(cmd, capture_output=False)
         if r.returncode == 0:

@@ -1,34 +1,37 @@
 import logging
 
 import aiohttp
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import CallbackQuery, Message
 
-from ..bot_types import BotContext, StorageKey, Data
-from ..bot_types import StatusData, Keyboard, NavData
+from ...auxiliary_utils import split_string
+from ...database.models import Category, YouTubeChannel
+from ...database.utils import (
+    add_yt_channel_category,
+    delete_category_by_name,
+    delete_channel_by_original_id,
+    delete_yt_channel_category,
+    get_yt_channel_by_id,
+    get_yt_channel_id,
+    set_telegram_chat_status,
+)
+from ...settings import MAX_CATEGORY_COUNT, MAX_TG_COUNT
+from ...youtube_utils import get_channel_info
+from ..bot_types import (
+    BotContext,
+    Data,
+    Keyboard,
+    NavData,
+    StatusData,
+    StorageKey,
+)
 from ..keyboards import (
     AttachCategoryData,
     YTChannelCategoryData,
+    build_attach_categories_keyboard,
     build_telegram_tg_keyboard,
 )
-from ..keyboards import build_attach_categories_keyboard
-from ...auxiliary_utils import split_string
-from ...database.models import YouTubeChannel, Category
-from ...database.utils import (
-    delete_category_by_name,
-    delete_channel_by_original_id,
-    get_yt_channel_id,
-)
-from ...database.utils import (
-    get_yt_channel_by_id,
-    add_yt_channel_category,
-    delete_yt_channel_category,
-    set_telegram_chat_status,
-)
-from ...settings import MAX_CATEGORY_COUNT
-from ...settings import MAX_TG_COUNT
-from ...youtube_utils import get_channel_info
 
 logger = logging.getLogger(__name__)
 router = Router(name=__name__)

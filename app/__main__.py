@@ -9,8 +9,8 @@ from pathlib import Path
 import colorama
 from dotenv import load_dotenv
 
-from .settings import Settings
 from .run import run
+from .settings import Settings
 
 
 def init_logging(log_dir: Path, mode: str) -> None:

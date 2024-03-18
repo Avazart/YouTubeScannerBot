@@ -80,4 +80,4 @@ class Settings(BaseSettings):
         def parse_env_var(cls, field_name: str, raw_val: str) -> Any:
             if field_name == "bot_admin_ids":
                 return _parse_ids(raw_val)
-            return getattr(cls, "json_loads")(raw_val)
+            return cls.json_loads(raw_val)

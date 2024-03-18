@@ -1,10 +1,10 @@
 import re
-from textwrap import shorten
-from typing import Iterable
+from collections.abc import Iterable
 from string import punctuation
+from textwrap import shorten
 
-from .message_utils import ScannerMessage, MessageGroups
-from .database.models import YouTubeVideo, YouTubeChannel, Destination
+from .database.models import Destination, YouTubeChannel, YouTubeVideo
+from .message_utils import MessageGroups, ScannerMessage
 from .youtube_utils import ScanData
 
 MAX_TITLE_WIDTH = 30

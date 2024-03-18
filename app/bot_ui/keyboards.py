@@ -1,33 +1,33 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .bot_types import (
-    PageData,
-    ChannelData,
-    AttachCategoryData,
-    CategoryFilterData,
-    YTChannelCategoryData,
-    TgData,
-    StatusData,
-    Keyboard,
-    NavData,
-    CloseData,
-)
 from ..auxiliary_utils import batched_evenly
 from ..database.models import (
-    YouTubeChannel,
     Category,
     Status,
+    YouTubeChannel,
     YTChannelCategory,
 )
 from ..database.utils import (
     Destination,
-    get_yt_channels,
     get_categories,
     get_tgs,
     get_yt_channel_categories,
+    get_yt_channels,
 )
 from ..settings import KEYBOARD_COLUMN_COUNT
+from .bot_types import (
+    AttachCategoryData,
+    CategoryFilterData,
+    ChannelData,
+    CloseData,
+    Keyboard,
+    NavData,
+    PageData,
+    StatusData,
+    TgData,
+    YTChannelCategoryData,
+)
 
 
 def _nav_buttons(

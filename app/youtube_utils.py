@@ -1,18 +1,17 @@
 import dataclasses
 import itertools
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
-from typing import Iterator
 
 import aiohttp
-
 from dateutil.relativedelta import relativedelta
 
 from .database.utils import YouTubeChannel, YouTubeVideo
 from .youtube_parser.youtube_parser import (
-    parse_channel_info,
     parse_channel,
+    parse_channel_info,
     parse_time_age,
     parse_video_tags,
 )
@@ -76,15 +75,15 @@ async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
         r.raise_for_status()
         data = parse_channel(await r.text())
         videos = list(map(make_video, data["videos"]))
-        tab_urls = data["tab_urls"]
+        # tab_urls = data["tab_urls"]
 
         # streams
         streams = []
-        if _has_tab(tab_urls, "/streams"):
-            r = await session.get(channel.url + "/streams", params=params)
-            r.raise_for_status()
-            data = parse_channel(await r.text())
-            streams = list(map(make_video, data["videos"]))
+        # if _has_tab(tab_urls, "/streams"):
+        #     r = await session.get(channel.url + "/streams", params=params)
+        #     r.raise_for_status()
+        #     data = parse_channel(await r.text())
+        #     streams = list(map(make_video, data["videos"]))
 
         return YouTubeChannelData(videos=videos, streams=streams)
 

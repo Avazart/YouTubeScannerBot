@@ -4,17 +4,17 @@ from logging import getLogger
 
 import redis.asyncio
 from aiogram import Bot
-from aiogram.exceptions import TelegramRetryAfter, TelegramNetworkError
+from aiogram.exceptions import TelegramNetworkError, TelegramRetryAfter
 
-from .message_utils import ScannerMessage, MessageGroup
-from .format_utils import fmt_pair, fmt_message
+from .format_utils import fmt_message, fmt_pair
+from .message_utils import MessageGroup, ScannerMessage
 from .settings import Settings
 
 logger = getLogger(__name__)
 
 
 async def try_send_message(m: ScannerMessage, settings: Settings, bot: Bot):
-    for i in range(settings.attempt_count):
+    for _ in range(settings.attempt_count):
         try:
             await bot.send_message(
                 chat_id=m.destination.chat.original_id,

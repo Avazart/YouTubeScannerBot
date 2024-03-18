@@ -1,5 +1,6 @@
 from collections import deque
-from typing import Sequence, Mapping, Callable, Any, TypeAlias, Iterator
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from typing import Any, TypeAlias
 
 KiValueIt: TypeAlias = Iterator[tuple[Any, Any]]
 Callback = Callable[[list, str | int, Any], tuple[bool, Any]]

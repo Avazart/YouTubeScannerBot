@@ -1,11 +1,10 @@
 import sys
 from pathlib import Path
 
+from get_ext_env import find_last_backup, load_dot_env
 from oauth2client.service_account import ServiceAccountCredentials
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
-
-from get_ext_env import find_last_backup, load_dot_env
 
 
 def upload_file(backup_file: Path, keyfile_path, email: str | None = None):

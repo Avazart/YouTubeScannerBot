@@ -1,20 +1,19 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import aiogram
 from sqlalchemy import (
-    DateTime,
-    String,
-    Boolean,
-    ForeignKey,
-    UniqueConstraint,
     BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    String,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
-    MappedAsDataclass,
     Mapped,
+    MappedAsDataclass,
     mapped_column,
 )
 
@@ -102,7 +101,7 @@ class TelegramChat(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     )
 
     @property
-    def url(self) -> Optional[str]:
+    def url(self) -> str | None:
         return (
             TG_URL_FMT.format(user_name=self.user_name)
             if self.user_name
@@ -173,10 +172,10 @@ class TelegramThread(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
 @dataclass
 class Destination:
     chat: TelegramChat
-    thread: Optional[TelegramThread]
+    thread: TelegramThread | None
 
     @property
-    def url(self) -> Optional[str]:
+    def url(self) -> str | None:
         if chart_url := self.chat.url:
             if self.thread:
                 return f"{chart_url}/{self.thread.original_id}"
@@ -184,10 +183,10 @@ class Destination:
                 return chart_url
         return None
 
-    def get_thread_id(self) -> Optional[int]:
+    def get_thread_id(self) -> int | None:
         return self.thread.id if self.thread else None
 
-    def get_thread_original_id(self) -> Optional[int]:
+    def get_thread_original_id(self) -> int | None:
         return self.thread.original_id if self.thread else None
 
     def __hash__(self):

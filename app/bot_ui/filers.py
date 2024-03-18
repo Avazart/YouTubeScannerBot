@@ -1,9 +1,8 @@
 import logging
-from typing import Union
 
 from aiogram.client.bot import Bot
 from aiogram.filters import BaseFilter
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 from app.bot_ui.bot_types import BotContext
 
@@ -30,7 +29,7 @@ class ChatAdminFilter(BaseFilter):
 
     async def __call__(
         self,
-        mq: Union[Message, CallbackQuery],
+        mq: Message | CallbackQuery,
         bot: Bot,
     ) -> bool:
         if isinstance(mq, Message):
@@ -41,7 +40,7 @@ class ChatAdminFilter(BaseFilter):
             chat = mq.message.chat
 
         chat_admins = await bot.get_chat_administrators(chat.id)
-        chat_admin_ids = frozenset((member.user.id for member in chat_admins))
+        chat_admin_ids = frozenset(member.user.id for member in chat_admins)
         assert mq.from_user
         return mq.from_user.id in chat_admin_ids
 
@@ -52,7 +51,7 @@ class PrivateChatFilter(BaseFilter):
 
     async def __call__(
         self,
-        mq: Union[Message, CallbackQuery],
+        mq: Message | CallbackQuery,
         bot: Bot,
     ) -> bool:
         if isinstance(mq, Message):

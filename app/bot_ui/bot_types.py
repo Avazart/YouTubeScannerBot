@@ -3,7 +3,7 @@ import copy
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import IntEnum, auto
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 import aiogram
 from aiogram.filters.callback_data import CallbackData
@@ -17,35 +17,35 @@ from ..settings import Settings
 
 @dataclass
 class Data:
-    keyboard_id: Optional[int] = None
+    keyboard_id: int | None = None
 
     categories_offset: int = 0
     yt_channels_offset: int = 0
     tgs_offset: int = 0
 
     # tgs -> filter -> channel
-    original_chat_id: Optional[int] = None
-    original_thread_id: Optional[int] = None
+    original_chat_id: int | None = None
+    original_thread_id: int | None = None
 
     # channels -> attach tag_names -> nav_buttons
-    channel_id: Optional[int] = None
+    channel_id: int | None = None
 
     # tag filter -> channels -> nav buttons
     categories_ids: set[int] = field(default_factory=set)
 
-    back_callback_data: Optional[str] = None
+    back_callback_data: int | None = None
 
 
 @dataclass
 class StorageRecord:
     data: Data = field(default_factory=Data)
-    state: Optional[str] = None
+    state: str | None = None
 
 
 @dataclass(frozen=True)
 class StorageKey:
     chat_id: int  # original chat_id
-    thread_id: Optional[int]  # original thread_id
+    thread_id: int | None  # original thread_id
     user_id: int
 
     @staticmethod
@@ -83,7 +83,7 @@ class Storage:
             else:
                 self._storage[key].state = None
 
-    async def get_state(self, key: StorageKey) -> Optional[str]:
+    async def get_state(self, key: StorageKey) -> str | None:
         async with self._lock:
             return self._storage[key].state
 

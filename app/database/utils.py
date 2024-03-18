@@ -1,30 +1,30 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, TypeAlias
+from typing import TypeAlias
 
 from sqlalchemy import true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import (
-    select,
-    exists,
     delete,
-    distinct,
-    update,
     desc,
+    distinct,
+    exists,
+    select,
+    update,
 )
 from sqlalchemy.sql.functions import count
 
-from .models import (
-    TelegramChat,
-    Forwarding,
-    YouTubeVideo,
-    YouTubeChannel,
-    Category,
-    YTChannelCategory,
-    TelegramThread,
-    Destination,
-)
 from ..bot_ui.bot_types import Status
+from .models import (
+    Category,
+    Destination,
+    Forwarding,
+    TelegramChat,
+    TelegramThread,
+    YouTubeChannel,
+    YouTubeVideo,
+    YTChannelCategory,
+)
 
 TgToYouTubeChannels: TypeAlias = dict[Destination, list[YouTubeChannel]]
 TgYtToForwarding: TypeAlias = dict[
@@ -192,7 +192,7 @@ async def get_last_video_ids(
     )
     result = await session.execute(q)
     rows = result.fetchall()
-    return frozenset((row[0].original_id for row in rows))
+    return frozenset(row[0].original_id for row in rows)
 
 
 async def get_video_by_original_id(
@@ -218,7 +218,7 @@ async def get_destinations(
     original_chat_id: int,
     original_thread_id: int | None,
     session: AsyncSession,
-) -> Optional[Destination]:
+) -> Destination | None:
     q = (
         select(TelegramChat, TelegramThread)
         .join(

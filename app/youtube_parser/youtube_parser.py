@@ -110,7 +110,7 @@ def _parse_section_list_renderer(renderer: dict) -> list[dict]:
         if not _has_no_video2(renderer):
             raise e
 
-    for i, item in enumerate(items):
+    for item in items:
         if video_renderer := item.get("gridVideoRenderer"):
             videos.append(_parse_renderer(video_renderer))
     return videos
@@ -119,7 +119,7 @@ def _parse_section_list_renderer(renderer: dict) -> list[dict]:
 def _parse_rich_grid_renderer(renderer: dict) -> list[dict]:
     videos = []
     items = search.find_first(renderer, search.ByKey("contents"))
-    for i, item in enumerate(items):
+    for item in items:
         if item_renderer := item.get("richItemRenderer"):
             video_renderer = search.find_first(
                 item_renderer,
