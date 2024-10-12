@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import (
 
 from .bot_ui.bot_types import BotContext, Storage
 from .bot_ui.filers import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
-from .bot_ui.handlers import bot_admins, chat_admins
+from .bot_ui.handlers import bot_admins, chat_admins, chat_users
 from .database.models import YouTubeChannel, YouTubeVideo
 from .database.utils import (
     get_forwarding_data,
@@ -83,6 +83,7 @@ async def run(settings: Settings) -> None:
 
     dp.include_router(bot_admins.router)
     dp.include_router(chat_admins.router)
+    dp.include_router(chat_users.router)
 
     context = BotContext(settings, Storage(), session_maker)
     logger.info("Create scheduler ...")
