@@ -1,4 +1,3 @@
-version: "2.2"
 services:
     app:
         container_name: youtube_scanner_app
