@@ -1,7 +1,7 @@
 from typing import Annotated, Final
 
 import pytz
-from pydantic import BeforeValidator
+from pydantic import BaseModel, BeforeValidator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .logging_utils import LogSettings
@@ -16,22 +16,28 @@ KEYBOARD_COLUMN_COUNT: Final[int] = 4
 MAX_YT_CHANNEL_COUNT: Final[int] = 10
 MAX_CATEGORY_COUNT: Final[int] = 40
 MAX_TG_COUNT: Final[int] = 10
+MISFIRE_GRACE_TIME: Final[int] = 10 * 60
+
+
+class BotSettings(BaseModel):
+    token: str
+    admin_ids: frozenset[int]
+
+
+class RedisSettings(BaseModel):
+    url: str
+    queue: str = "youtube_scanner:queue"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_nested_delimiter="__")
 
     log: LogSettings
-
-    bot_token: str
-    bot_admin_ids: frozenset[int]
-
+    bot: BotSettings
+    # redis: RedisSettings
     database_url: str
-    redis_url: str
-    redis_queue: str = "youtube_scanner:queue"
 
     without_sending: bool = False
-
     scan_schedule: str = "*/30 * * * *"
     notify_schedule: str = "*/30 * * * *"
 
@@ -41,5 +47,4 @@ class Settings(BaseSettings):
     message_delay: float = 0.5
     attempt_count: int = 3
     app_tz: Annotated[pytz.BaseTzInfo, BeforeValidator(pytz.timezone)]
-    check_migrations: bool = False
     parse_tags: bool = False

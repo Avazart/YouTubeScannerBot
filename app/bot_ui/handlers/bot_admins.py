@@ -3,10 +3,7 @@ import logging
 import aiohttp
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
-from aiogram.types import (
-    CallbackQuery,
-    Message,
-)
+from aiogram.types import CallbackQuery, Message
 
 from ...auxiliary_utils import split_string
 from ...database.models import Category, YouTubeChannel

@@ -19,7 +19,7 @@ class BotAdminFilter(BaseFilter):
         context: BotContext,
     ) -> bool:
         if mq.from_user:
-            return mq.from_user.id in context.settings.bot_admin_ids
+            return mq.from_user.id in context.settings.bot.admin_ids
         return False
 
 

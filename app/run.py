@@ -1,6 +1,4 @@
 import asyncio
-import subprocess
-import sys
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from logging import getLogger
@@ -36,27 +34,21 @@ from .database.utils import (
 )
 from .format_utils import fmt_channel, make_message_text, make_video_line
 from .send_worker import try_send_message
-from .settings import LAST_DAYS_IN_DB, LAST_DAYS_ON_PAGE, Settings
+from .settings import (
+    LAST_DAYS_IN_DB,
+    LAST_DAYS_ON_PAGE,
+    MISFIRE_GRACE_TIME,
+    Settings,
+)
 from .youtube_parser import search
 from .youtube_utils import get_channel_data
 
 logger = getLogger(__name__)
 
 
-async def upgrade_database(attempts=6, delay=10) -> None:
-    for _ in range(attempts):
-        cmd = [sys.executable, "-m", "alembic", "upgrade", "head"]
-        r = subprocess.run(cmd, capture_output=False)
-        if r.returncode == 0:
-            return
-
-        logger.warning("Database is not ready!")
-        await asyncio.sleep(delay)
-    raise RuntimeError("Can`t upgrade database!")
-
-
 async def on_startup(bot: Bot) -> None:
     logger.info("Bot started.")
+    await bot.delete_webhook(drop_pending_updates=True)
     await bot.set_my_commands(
         PRIVATE_COMMANDS, BotCommandScopeAllPrivateChats()
     )
@@ -69,9 +61,8 @@ async def run(settings: Settings) -> None:
 
     logger.info("Create bot instance ...")
 
-    bot = Bot(token=settings.bot_token)
+    bot = Bot(token=settings.bot.token)
     dp = Dispatcher()
-    await bot.delete_webhook(drop_pending_updates=True)
 
     bot_admin_filter = BotAdminFilter()
     bot_admins.router.callback_query.filter(bot_admin_filter)
@@ -84,10 +75,9 @@ async def run(settings: Settings) -> None:
     chat_admins.router.message.filter(chat_admin_filter)
     chat_admins.router.callback_query.filter(chat_admin_filter)
 
-    dp.include_router(bot_admins.router)
-    dp.include_router(chat_admins.router)
-    dp.include_router(chat_users.router)
-
+    dp.include_routers(
+        bot_admins.router, chat_admins.router, chat_users.router
+    )
     context = BotContext(settings, Storage(), session_maker)
     logger.info("Create scheduler ...")
     scheduler = AsyncIOScheduler(timezone=settings.app_tz)
@@ -98,7 +88,7 @@ async def run(settings: Settings) -> None:
         scan,
         args=(session_maker, settings),
         trigger=scan_trigger,
-        misfire_grace_time=10 * 60,
+        misfire_grace_time=MISFIRE_GRACE_TIME,
     )
     notify_trigger = CronTrigger.from_crontab(
         settings.notify_schedule, timezone=settings.app_tz
@@ -107,7 +97,7 @@ async def run(settings: Settings) -> None:
         notify,
         args=(session_maker, settings, bot),
         trigger=notify_trigger,
-        misfire_grace_time=10 * 60,
+        misfire_grace_time=MISFIRE_GRACE_TIME,
     )
     scheduler.start()
 
