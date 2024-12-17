@@ -25,6 +25,7 @@ from .bot_ui.bot_types import BotContext, Storage
 from .bot_ui.filers import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
 from .bot_ui.handlers import bot_admins, chat_admins, chat_users
 from .bot_ui.keyboards import video_links_keyboard
+from .command_menu import GROUP_COMMANDS, PRIVATE_COMMANDS
 from .database.models import Destination, YouTubeChannel, YouTubeVideo
 from .database.utils import (
     add_forwarded_videos,
@@ -35,13 +36,7 @@ from .database.utils import (
 )
 from .format_utils import fmt_channel, make_message_text, make_video_line
 from .send_worker import try_send_message
-from .settings import (
-    GROUP_COMMANDS,
-    LAST_DAYS_IN_DB,
-    LAST_DAYS_ON_PAGE,
-    PRIVATE_COMMANDS,
-    Settings,
-)
+from .settings import LAST_DAYS_IN_DB, LAST_DAYS_ON_PAGE, Settings
 from .youtube_parser import search
 from .youtube_utils import get_channel_data
 
@@ -95,9 +90,9 @@ async def run(settings: Settings) -> None:
 
     context = BotContext(settings, Storage(), session_maker)
     logger.info("Create scheduler ...")
-    scheduler = AsyncIOScheduler(timezone=settings.tz)
+    scheduler = AsyncIOScheduler(timezone=settings.app_tz)
     scan_trigger = CronTrigger.from_crontab(
-        settings.scan_schedule, timezone=settings.tz
+        settings.scan_schedule, timezone=settings.app_tz
     )
     scheduler.add_job(
         scan,
@@ -106,7 +101,7 @@ async def run(settings: Settings) -> None:
         misfire_grace_time=10 * 60,
     )
     notify_trigger = CronTrigger.from_crontab(
-        settings.notify_schedule, timezone=settings.tz
+        settings.notify_schedule, timezone=settings.app_tz
     )
     scheduler.add_job(
         notify,
@@ -216,7 +211,7 @@ async def scan_youtube_channels(
     channels: Sequence[YouTubeChannel],
     request_delay: float,
 ) -> list[YouTubeVideo]:
-    result = []
+    result: list[YouTubeVideo] = []
     for i, channel in enumerate(channels, start=1):
         logger.debug(f"{i}/{len(channels)} " + fmt_channel(channel))
         try:

@@ -1,26 +1,18 @@
+import argparse
 import asyncio
-import json
 import random
 import sys
 from logging import getLogger
-from logging.config import dictConfig
 from pathlib import Path
 
 import colorama
 from dotenv import load_dotenv
 
+from .logging_utils import init_logging
 from .run import run
 from .settings import Settings
 
-
-def init_logging(log_dir: Path, mode: str) -> None:
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_config_path = Path(f"log_configs/{mode}.json")
-    with open(log_config_path) as file:
-        config = json.load(file)
-        file_handler = config["handlers"]["FileHandler"]
-        file_handler["filename"] = str(log_dir / "log.txt")
-        dictConfig(config)
+logger = getLogger(Path(__file__).parent.name)
 
 
 def main() -> int:
@@ -33,15 +25,22 @@ def main() -> int:
         init_win_console()
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    if len(sys.argv) == 2:
-        env_file = f".env.{sys.argv[1]}"
-        load_dotenv(env_file)
-    else:
-        load_dotenv()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--env-file",
+        type=str,
+        default=None,
+        help="Path to the environment variables file",
+    )
+    args = parser.parse_args()
+    load_dotenv(args.env_file)
+    try:
+        settings = Settings()
+        init_logging(settings.log, settings.app_tz)
+    except Exception as e:
+        print(f'Error occurred: "{e}"', file=sys.stderr)
+        return 1
 
-    settings = Settings()
-    init_logging(settings.log_dir, settings.mode)
-    logger = getLogger(Path(__file__).parent.name)
     try:
         logger.info("Start work ...")
         asyncio.run(run(settings))
