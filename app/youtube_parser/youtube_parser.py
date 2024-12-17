@@ -76,7 +76,7 @@ def _parse_renderer(video_renderer: dict) -> dict:
 
 def _has_no_video(content_0: dict) -> bool:
     text = search.get(content_0, "messageRenderer", "text", "simpleText")
-    if text is search.NotFound:
+    if text is search.NotFoundType:
         return False
     return text == "This channel has no videos."
 
@@ -85,7 +85,7 @@ def _has_no_video2(renderer: dict) -> bool:
     text = search.find_first(
         renderer, search.BySubPath("description", "simpleText")
     )
-    if text is search.NotFound:
+    if text is search.NotFoundType:
         return False
     return text == "This channel has no videos."
 

@@ -2,26 +2,32 @@ from collections import deque
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, TypeAlias
 
-KiValueIt: TypeAlias = Iterator[tuple[Any, Any]]
-Callback = Callable[[list, str | int, Any], tuple[bool, Any]]
-
 
 class SearchError(Exception):
     pass
 
 
-class NotFound:
+class NotFoundType:
     pass
 
 
-NOT_FOUND = NotFound()
+class NotMatchedType:
+    pass
+
+
+KiValueIt: TypeAlias = Iterator[tuple[Any, Any]]
+PathItem = str | int  # key for dict or index for list
+Callback = Callable[[list, PathItem, Any], Any | NotMatchedType]
+
+NOT_FOUND = NotFoundType()
+NOT_MATCHED = NotMatchedType()
 
 
 def get(
     root: Sequence | Mapping,
-    *path: str | int,
-    default=NOT_FOUND,
-) -> Any | NotFound:
+    *path: PathItem,
+    default: Any | NotFoundType = NOT_FOUND,
+) -> Any | NotFoundType:
     for e in path:
         if isinstance(e, int):
             if isinstance(root, Sequence) and e < len(root):
@@ -55,35 +61,26 @@ def _is_composite_object(obj) -> bool:
     )
 
 
-def find_first(root: Sequence | Mapping, callback: Callback) -> Any:
-    q: deque[Sequence | Mapping] = deque([([], root)])
+def find_iter(root: Sequence | Mapping, callback: Callback) -> Iterator[Any]:
+    q: deque[Sequence[Any] | Mapping[Any, Any]] = deque([([], root)])
     while q:
         path, obj = q.popleft()
         if _is_composite_object(obj):
             for ki, value in _iterate_map_or_seq(obj):
-                matched, result = callback(path, ki, value)
-                if matched:
-                    return result
-                else:
-                    if _is_composite_object(value):
-                        q.append((path + [ki], value))
-    raise SearchError("Not found!")
+                if (result := callback(path, ki, value)) is not NOT_MATCHED:
+                    yield result
+                elif _is_composite_object(value):
+                    q.append((path + [ki], value))
+
+
+def find_first(root: Sequence | Mapping, callback: Callback) -> Any:
+    if (result := next(find_iter(root, callback), NOT_FOUND)) is NOT_FOUND:
+        raise SearchError("Not found!")
+    return result
 
 
 def find_all(root: Sequence | Mapping, callback: Callback) -> list:
-    q: deque[Sequence[Any] | Mapping[Any, Any]] = deque([([], root)])
-    results = []
-    while q:
-        path, obj = q.popleft()
-        if _is_composite_object(obj):
-            for ki, value in _iterate_map_or_seq(obj):
-                matched, result = callback(path, ki, value)
-                if matched:
-                    results.append(result)
-                else:
-                    if _is_composite_object(value):
-                        q.append((path + [ki], value))
-    return results
+    return list(find_iter(root, callback))
 
 
 class ByKey:
@@ -91,24 +88,21 @@ class ByKey:
         self._key = key
 
     def __call__(
-        self,
-        path: list,
-        ki: str | int,
-        value: Any,
-    ) -> tuple[bool, Any]:
+        self, path: list, ki: PathItem, value: Any
+    ) -> Any | NotMatchedType:
         if (not isinstance(ki, int)) and ki == self._key:
-            return True, value
-        return False, None  # found, result_value
+            return value
+        return NOT_MATCHED
 
 
 class BySubPath:
-    def __init__(self, *sub_path: str | int, return_root: bool = False):
+    def __init__(self, *sub_path: PathItem, return_root: bool = False):
         self._sub_path = sub_path
         self._return_root = return_root
 
-    def __call__(self, path: list, ki, value: Any) -> tuple[bool, Any]:
+    def __call__(self, path: list, ki, value: Any) -> Any | NotMatchedType:
         if ki == self._sub_path[0]:
             child_value = get(value, *self._sub_path[1:])
             if child_value is not NOT_FOUND:
-                return True, value if self._return_root else child_value
-        return False, None
+                return value if self._return_root else child_value
+        return NOT_MATCHED

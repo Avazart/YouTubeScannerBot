@@ -194,7 +194,7 @@ async def send_videos(
             ):
                 dispatched_videos.append(video)
             await asyncio.sleep(settings.message_delay)
-    else:  # GROUPS, PRIVAT
+    else:  # GROUPS, PRIVATE
         text = make_message_text(videos, channel_titles)
         if await try_send_message(
             bot,
