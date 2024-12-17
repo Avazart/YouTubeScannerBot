@@ -1,7 +1,4 @@
 import asyncio
-import itertools
-import pickle
-import random
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -10,10 +7,14 @@ from logging import getLogger
 
 import aiohttp
 from aiogram import Bot, Dispatcher
+from aiogram.enums import ChatType, ParseMode
 from aiogram.filters import or_f
+from aiogram.types import (
+    BotCommandScopeAllGroupChats,
+    BotCommandScopeAllPrivateChats,
+)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from redis.asyncio import from_url
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -23,23 +24,26 @@ from sqlalchemy.ext.asyncio import (
 from .bot_ui.bot_types import BotContext, Storage
 from .bot_ui.filers import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
 from .bot_ui.handlers import bot_admins, chat_admins, chat_users
-from .database.models import YouTubeChannel, YouTubeVideo
+from .bot_ui.keyboards import video_links_keyboard
+from .database.models import Destination, YouTubeChannel, YouTubeVideo
 from .database.utils import (
+    add_forwarded_videos,
+    get_active_yt_channels,
     get_forwarding_data,
-    get_last_video_ids,
-    get_video_by_original_id,
+    get_not_forwarded_videos,
+    insert_videos,
 )
-from .format_utils import fmt_channel, fmt_groups, fmt_scan_data
-from .message_utils import get_tg_to_yt_videos, make_message_groups
-from .send_worker import send_worker
-from .settings import LAST_DAYS_IN_DB, LAST_DAYS_ON_PAGE, MY_COMMANDS, Settings
+from .format_utils import fmt_channel, make_message_text, make_video_line
+from .send_worker import try_send_message
+from .settings import (
+    GROUP_COMMANDS,
+    LAST_DAYS_IN_DB,
+    LAST_DAYS_ON_PAGE,
+    PRIVATE_COMMANDS,
+    Settings,
+)
 from .youtube_parser import search
-from .youtube_utils import (
-    ScanData,
-    YouTubeChannelData,
-    get_channel_data,
-    get_video_tags,
-)
+from .youtube_utils import get_channel_data
 
 logger = getLogger(__name__)
 
@@ -56,9 +60,12 @@ async def upgrade_database(attempts=6, delay=10) -> None:
     raise RuntimeError("Can`t upgrade database!")
 
 
-async def on_startup(bot: Bot):
+async def on_startup(bot: Bot) -> None:
     logger.info("Bot started.")
-    await bot.set_my_commands(MY_COMMANDS)
+    await bot.set_my_commands(
+        PRIVATE_COMMANDS, BotCommandScopeAllPrivateChats()
+    )
+    await bot.set_my_commands(GROUP_COMMANDS, BotCommandScopeAllGroupChats())
 
 
 async def run(settings: Settings) -> None:
@@ -66,6 +73,7 @@ async def run(settings: Settings) -> None:
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
     logger.info("Create bot instance ...")
+
     bot = Bot(token=settings.bot_token)
     dp = Dispatcher()
     await bot.delete_webhook(drop_pending_updates=True)
@@ -88,14 +96,23 @@ async def run(settings: Settings) -> None:
     context = BotContext(settings, Storage(), session_maker)
     logger.info("Create scheduler ...")
     scheduler = AsyncIOScheduler(timezone=settings.tz)
-    trigger = CronTrigger.from_crontab(
-        settings.cron_schedule,
-        timezone=settings.tz,
+    scan_trigger = CronTrigger.from_crontab(
+        settings.scan_schedule, timezone=settings.tz
     )
     scheduler.add_job(
-        update,
+        scan,
         args=(session_maker, settings),
-        trigger=trigger,
+        trigger=scan_trigger,
+        misfire_grace_time=10 * 60,
+    )
+    notify_trigger = CronTrigger.from_crontab(
+        settings.notify_schedule, timezone=settings.tz
+    )
+    scheduler.add_job(
+        notify,
+        args=(session_maker, settings, bot),
+        trigger=notify_trigger,
+        misfire_grace_time=10 * 60,
     )
     scheduler.start()
 
@@ -103,81 +120,107 @@ async def run(settings: Settings) -> None:
     dp.startup.register(on_startup)
     tasks = [
         dp.start_polling(bot, context=context),
-        send_worker(settings, bot),
+        # FIXME:
     ]
     await asyncio.gather(*tasks)
 
 
-async def update(session_maker, settings: Settings) -> None:
-    logger.info("Updating ...")
-
+async def scan(session_maker, settings: Settings) -> None:
     async with session_maker() as session:
-        f_data = await get_forwarding_data(session)
-        tg_to_yt_channels, tg_yt_to_forwarding = f_data
-
-        youtube_channels = list(
-            set(itertools.chain.from_iterable(tg_to_yt_channels.values()))
-        )
-        if not settings.mode != "dev":
-            random.shuffle(youtube_channels)
+        channels = await get_active_yt_channels(session)
+        logger.info(f"Channel count {len(channels)}")
 
         logger.info("Scan youtube channels ...")
-        logger.info(f"Channel count {len(youtube_channels)}")
+        videos = await scan_youtube_channels(channels, settings.request_delay)
+        recent_videos = get_recent_videos(videos, LAST_DAYS_ON_PAGE)
 
-        scan_data = await scan_youtube_channels(
-            youtube_channels,
-            settings.request_delay,
-        )
+        logger.info(f"Recent videos: {len(recent_videos)}")
+        # logger.debug(pformat(recent_videos))
+        if recent_videos:
+            await insert_videos(session, recent_videos)
+        logger.info("Scanning complete.")
 
-        logger.info("Search new videos ...")
-        new_data = await filter_data_by_time(scan_data)
-        new_data = await filter_data_by_id(new_data, session)
-        new_videos: frozenset[YouTubeVideo] = frozenset(
-            itertools.chain.from_iterable(list(new_data.values()))
-        )
 
-        tags = {}
-        if settings.parse_tags:
-            logger.info("Parse tags of videos ...")
-            for video in new_videos:
-                tags[video.original_id] = await get_video_tags(video.url)
-                await asyncio.sleep(settings.request_delay)
+async def notify(session_maker, settings: Settings, bot: Bot) -> None:
+    async with session_maker() as session:
+        logger.info("Notification ...")
+        dest_with_channels, _ = await get_forwarding_data(session)
+        channel_titles = {}
+        for channels in dest_with_channels.values():
+            for channel in channels:
+                channel_titles[channel.id] = channel.title
 
-        logger.info(f"New videos: {len(new_videos)}")
-        if new_videos:
-            logger.info(fmt_scan_data(new_data))
-
-            logger.info("Make message groups ...")
-            tg_to_yt_videos = get_tg_to_yt_videos(new_data, tg_to_yt_channels)
-            groups = make_message_groups(
-                tg_to_yt_videos,
-                youtube_channels,
-                tags,
+        for dest, channels in dest_with_channels.items():
+            limit = 2 if dest.chat.type == ChatType.CHANNEL else 5
+            videos = await get_not_forwarded_videos(
+                session, dest, channels, last_days=LAST_DAYS_IN_DB, limit=limit
             )
-            logger.info("Messages:\n" + fmt_groups(groups, " " * 4))
+            logger.info(
+                "{chat}{thread} videos: {count}".format(
+                    chat=dest.chat.title or dest.chat.first_name,
+                    thread=("/" + dest.thread.title)
+                    if dest.thread and dest.thread.title
+                    else "",
+                    count=len(videos),
+                )
+            )
 
-            dumps = [pickle.dumps(group) for group in groups]
-            async with from_url(settings.redis_url) as redis_client:
-                await redis_client.rpush(settings.redis_queue, *dumps)
+            if videos:
+                await send_videos(
+                    dest, videos, channel_titles, session, bot, settings
+                )
+    logger.info("Notification completed.")
 
-            logger.info("Save new videos to database ...")
-            try:
-                session.add_all(new_videos)
-                await session.commit()
-            except Exception as e:
-                logger.exception(e)
-        logger.info("Updating finished.")
+
+async def send_videos(
+    dest: Destination,
+    videos: list[YouTubeVideo],
+    channel_titles: dict,
+    session: AsyncSession,
+    bot: Bot,
+    settings: Settings,
+):
+    dispatched_videos = []
+    logger.debug(dest)
+    if dest.chat.type.lower() == ChatType.CHANNEL:
+        for video in videos:
+            if await try_send_message(
+                bot,
+                dest.chat.original_id,
+                make_video_line(video, channel_titles),
+                settings,
+                message_thread_id=dest.get_thread_original_id(),
+                parse_mode=ParseMode.HTML,
+            ):
+                dispatched_videos.append(video)
+            await asyncio.sleep(settings.message_delay)
+    else:  # GROUPS, PRIVAT
+        text = make_message_text(videos, channel_titles)
+        if await try_send_message(
+            bot,
+            dest.chat.original_id,
+            text,
+            settings,
+            message_thread_id=dest.get_thread_original_id(),
+            parse_mode=ParseMode.HTML,
+            reply_markup=video_links_keyboard(1, len(videos)),
+        ):
+            dispatched_videos = videos
+
+    if dispatched_videos:
+        await add_forwarded_videos(session, dest, dispatched_videos)
+    await asyncio.sleep(settings.message_delay)
 
 
 async def scan_youtube_channels(
     channels: Sequence[YouTubeChannel],
     request_delay: float,
-) -> ScanData:
-    result = {}
+) -> list[YouTubeVideo]:
+    result = []
     for i, channel in enumerate(channels, start=1):
         logger.debug(f"{i}/{len(channels)} " + fmt_channel(channel))
         try:
-            result[channel] = await get_channel_data(channel)
+            result.extend(await get_channel_data(channel))
         except (aiohttp.ClientConnectorError, asyncio.TimeoutError) as e:
             logger.error(
                 f"Scan error {channel.title}\n{channel.url}\n{type(e)}"
@@ -187,84 +230,9 @@ async def scan_youtube_channels(
         except Exception as e:
             logger.exception(e)
         await asyncio.sleep(request_delay)
-    logger.debug("Scan done!")
     return result
 
 
-def filter_videos_by_time(
-    vs: list[YouTubeVideo],
-    last_time: datetime,
-) -> list[YouTubeVideo]:
+def get_recent_videos(vs: list[YouTubeVideo], days: int) -> list[YouTubeVideo]:
+    last_time = datetime.today() - timedelta(days=days)
     return list(filter(lambda v: v.creation_time >= last_time, vs))
-
-
-async def filter_videos_by_id(
-    videos: list[YouTubeVideo],
-    last_ids: frozenset[str],
-) -> list[YouTubeVideo]:
-    result = []
-    for video in videos:
-        if video.original_id not in last_ids:
-            result.append(video)
-    return result
-
-
-async def filter_streams_by_id(
-    streams: list[YouTubeVideo],
-    last_ids: frozenset[str],
-    session: AsyncSession,
-) -> list[YouTubeVideo]:
-    result = []
-    for stream in streams:
-        if stream.original_id not in last_ids:
-            if exist_stream := await get_video_by_original_id(
-                stream.original_id,
-                session,
-            ):
-                if "LIVE" in (stream.style, exist_stream.style):
-                    exist_stream.style = "LIVE"
-                    exist_stream.live_24_7 = True
-                    await session.merge(exist_stream)
-            else:
-                result.append(stream)
-    return result
-
-
-async def filter_data_by_time(scan_data: ScanData) -> ScanData:
-    new_data: ScanData = {}
-    last_time = datetime.today() - timedelta(days=LAST_DAYS_ON_PAGE)
-    for channel, data in scan_data.items():
-        new_data[channel] = YouTubeChannelData(
-            videos=filter_videos_by_time(data.videos, last_time),
-            streams=filter_videos_by_time(data.streams, last_time),
-        )
-    return new_data
-
-
-async def filter_data_by_id(
-    scan_data: ScanData,
-    session: AsyncSession,
-) -> ScanData:
-    new_data: ScanData = {}
-    for channel, data in scan_data.items():
-        assert channel.id is not None
-        if data.videos or data.streams:
-            last_video_ids = await get_last_video_ids(
-                channel.id,  # noqa
-                LAST_DAYS_IN_DB,
-                session,
-            )
-            videos = await filter_videos_by_id(
-                data.videos,
-                last_video_ids,
-            )
-            streams = await filter_streams_by_id(
-                data.streams,
-                last_video_ids,
-                session,
-            )
-            new_data[channel] = YouTubeChannelData(
-                videos=videos,
-                streams=streams,
-            )
-    return new_data

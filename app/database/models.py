@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 import aiogram
 from sqlalchemy import (
@@ -7,6 +8,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     UniqueConstraint,
 )
@@ -32,7 +34,8 @@ class Base(DeclarativeBase):
 class YouTubeChannel(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "YouTubeChannels"
 
-    id: Mapped[int | None] = mapped_column(
+    id: Mapped[int] = mapped_column(
+        Integer,
         init=False,
         primary_key=True,
         autoincrement=True,
@@ -136,7 +139,7 @@ class TelegramThread(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         autoincrement=True,
     )
     original_id: Mapped[int] = mapped_column(
-        BigInteger,
+        BigInteger,  # FIXME: unique, index = True
     )
     original_chat_id: Mapped[int] = mapped_column(
         ForeignKey(
@@ -295,6 +298,9 @@ class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     def __eq__(self, other):
         return self.original_id == other.original_id
 
+    def as_dict(self) -> dict[str, Any]:
+        return {k: v for k, v in vars(self).items() if not k.startswith("_")}
+
 
 class Category(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     __tablename__ = "Categories"
@@ -356,3 +362,45 @@ class YTChannelCategory(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
             other.category_id,
             other.channel_id,
         )
+
+
+class ForwardedVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+    __tablename__ = "ForwardedVideos"
+
+    id: Mapped[int] = mapped_column(
+        init=False,
+        primary_key=True,
+        autoincrement=True,
+    )
+    video_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            YouTubeVideo.id,
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
+        nullable=False,
+    )
+    chat_original_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            TelegramChat.original_id,
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
+        nullable=False,
+    )
+    thread_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            TelegramThread.id,
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
+        nullable=True,
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "video_id",
+            "chat_original_id",
+            "thread_id",
+            name="unique_forwarded_video",
+        ),
+    )

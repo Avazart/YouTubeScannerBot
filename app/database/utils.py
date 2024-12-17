@@ -2,12 +2,12 @@ import logging
 from datetime import datetime, timedelta
 from typing import TypeAlias
 
-from sqlalchemy import true
+from sqlalchemy import distinct
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import (
     delete,
     desc,
-    distinct,
     exists,
     select,
     update,
@@ -18,6 +18,7 @@ from ..bot_ui.bot_types import Status
 from .models import (
     Category,
     Destination,
+    ForwardedVideo,
     Forwarding,
     TelegramChat,
     TelegramThread,
@@ -35,7 +36,92 @@ ForwardingData: TypeAlias = tuple[TgToYouTubeChannels, TgYtToForwarding]
 logger = logging.getLogger(__name__)
 
 
-# Forwarding
+async def get_active_yt_channels(
+    session: AsyncSession
+) -> list[YouTubeChannel]:
+    q = (
+        select(YouTubeChannel)
+        .join(Forwarding, YouTubeChannel.id == Forwarding.youtube_channel_id)
+        .join(
+            TelegramChat,
+            TelegramChat.original_id == Forwarding.telegram_chat_id,
+        )
+        .where(TelegramChat.status == int(Status.ON))
+        .distinct()
+        .order_by(YouTubeChannel.id)
+    )
+    result = await session.execute(q)
+    return result.scalars().all()  # type: ignore
+
+
+async def get_active_destinations(session: AsyncSession) -> list[Destination]:
+    q = (
+        select(TelegramChat, TelegramThread)
+        .join(
+            Forwarding, TelegramChat.original_id == Forwarding.telegram_chat_id
+        )
+        .outerjoin(
+            TelegramThread, TelegramThread.id == Forwarding.telegram_thread_id
+        )
+        .where(TelegramChat.status == int(Status.ON))
+    )
+    result = await session.execute(q)
+    return [Destination(chat=row[0], thread=row[1]) for row in result.all()]
+
+
+async def insert_videos(
+    session: AsyncSession,
+    videos: list[YouTubeVideo],
+) -> None:
+    q = insert(YouTubeVideo).values([v.as_dict() for v in videos])
+    q = q.on_conflict_do_nothing(index_elements=["original_id"])
+    await session.execute(q)
+    await session.commit()
+
+
+async def add_forwarded_videos(
+    session: AsyncSession,
+    dest: Destination,
+    videos: list[YouTubeVideo],
+) -> None:
+    f_videos = [
+        ForwardedVideo(
+            video_id=video.id,
+            chat_original_id=dest.chat.original_id,
+            thread_id=dest.get_thread_id(),
+        )
+        for video in videos
+    ]
+    session.add_all(f_videos)
+    await session.commit()
+
+
+async def get_not_forwarded_videos(
+    session: AsyncSession,
+    dest: Destination,
+    channels: list[YouTubeChannel],
+    last_days: int | None = None,
+    limit: int = 5,
+) -> list[YouTubeVideo]:
+    channel_ids = (ch.id for ch in channels)
+
+    forwarded_subquery = select(ForwardedVideo.video_id).where(
+        (ForwardedVideo.chat_original_id == dest.chat.original_id)
+        & (ForwardedVideo.thread_id == dest.get_thread_id())
+    )
+
+    q = select(YouTubeVideo).filter(
+        YouTubeVideo.channel_id.in_(channel_ids)
+        & (~YouTubeVideo.id.in_(forwarded_subquery))
+    )
+    if last_days:
+        last_time = datetime.today() - timedelta(days=last_days)
+        q = q.where(YouTubeVideo.creation_time >= last_time)
+
+    q = q.order_by(YouTubeVideo.creation_time.desc()).limit(limit)
+
+    result = await session.execute(q)
+    return result.scalars().all()  # type: ignore
 
 
 async def get_forwarding_data(session: AsyncSession) -> ForwardingData:
@@ -67,7 +153,7 @@ async def add_forwarding(
     telegram_chat_id: int,
     telegram_thread_id: int | None,
     session: AsyncSession,
-):
+) -> None:
     f = Forwarding(
         youtube_channel_id=youtube_channel_id,
         telegram_chat_id=telegram_chat_id,
@@ -81,7 +167,7 @@ async def delete_forwarding(
     telegram_chat_id: int,
     telegram_thread_id: int | None,
     session: AsyncSession,
-):
+) -> None:
     q = delete(Forwarding).where(
         (Forwarding.youtube_channel_id == youtube_channel_id)
         & (Forwarding.telegram_chat_id == telegram_chat_id)
@@ -171,28 +257,6 @@ async def get_yt_channels(
 
 
 #  YouTubeVideo
-
-
-async def get_last_video_ids(
-    channel_id: int,
-    last_days: int,
-    session: AsyncSession,
-) -> frozenset[str]:
-    last_time = datetime.today() - timedelta(days=last_days)
-    q = (
-        select(YouTubeVideo)
-        .where(
-            (YouTubeVideo.channel_id == channel_id)
-            & (
-                (YouTubeVideo.creation_time >= last_time)
-                | YouTubeVideo.live_24_7.is_(true())
-            )
-        )
-        .order_by(YouTubeVideo.creation_time.desc())
-    )
-    result = await session.execute(q)
-    rows = result.fetchall()
-    return frozenset(row[0].original_id for row in rows)
 
 
 async def get_video_by_original_id(

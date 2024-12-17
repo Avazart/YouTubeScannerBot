@@ -1,7 +1,8 @@
 import logging
-from collections import deque
+import re
 
-from aiogram import Router
+from aiogram import F, Router
+from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery
 
 from ..bot_types import VideoLinksData
@@ -11,15 +12,27 @@ logger = logging.getLogger(__name__)
 router = Router(name=__name__)
 
 
-@router.callback_query(VideoLinksData.filter())
-async def rotate_video_links(
+def parse_number(line: str) -> int | None:
+    if m := re.search(r"^(\d+)", line):
+        return int(m.group(1))
+    return None
+
+
+@router.callback_query(
+    VideoLinksData.filter(),
+    F.message.html_text.as_("html_text"),
+)
+async def change_message_preview(
     callback_query: CallbackQuery,
     callback_data: VideoLinksData,
+    html_text: str,
 ):
-    links = deque(callback_query.message.text.split("\n"))
-    links.rotate(int(callback_data.direction))
+    links = html_text.split("\n")
+    links.sort(key=parse_number)
+    links.insert(0, links.pop(callback_data.number - 1))
     await callback_query.message.edit_text(
         "\n".join(links),
-        reply_markup=video_links_keyboard(),
+        reply_markup=video_links_keyboard(callback_data.number, len(links)),
+        parse_mode=ParseMode.HTML,
     )
     await callback_query.answer()

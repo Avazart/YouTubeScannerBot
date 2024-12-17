@@ -27,7 +27,6 @@ from .bot_types import (
     StatusData,
     TgData,
     VideoLinksData,
-    VideoLinksRotation,
     YTChannelCategoryData,
 )
 
@@ -424,23 +423,12 @@ async def build_attach_categories_keyboard(
     return keyboard
 
 
-def video_links_keyboard() -> InlineKeyboardMarkup:
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="Preview",
-                    callback_data=VideoLinksData(
-                        direction=VideoLinksRotation.PREVIEW
-                    ).pack(),
-                ),
-                InlineKeyboardButton(
-                    text="Next",
-                    callback_data=VideoLinksData(
-                        direction=VideoLinksRotation.NEXT
-                    ).pack(),
-                ),
-            ]
-        ]
-    )
-    return keyboard
+def video_links_keyboard(selected: int, total: int) -> InlineKeyboardMarkup:
+    buttons = [[]]
+    for n in range(1, total + 1):
+        if n != selected:
+            button = InlineKeyboardButton(
+                text=str(n), callback_data=VideoLinksData(number=n).pack()
+            )
+            buttons[0].append(button)
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

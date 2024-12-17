@@ -6,9 +6,9 @@ from aiogram.types import BotCommand
 from pydantic.v1 import BaseSettings, Field
 
 MIN_MEMBER_COUNT: Final[int] = 10
-LAST_DAYS_ON_PAGE: Final[int] = 2
 
-LAST_DAYS_IN_DB: Final[int] = 90
+LAST_DAYS_ON_PAGE: Final[int] = 7
+LAST_DAYS_IN_DB: Final[int] = 7
 
 KEYBOARD_COLUMN_COUNT: Final[int] = 4
 
@@ -16,7 +16,7 @@ MAX_YT_CHANNEL_COUNT: Final[int] = 10
 MAX_CATEGORY_COUNT: Final[int] = 40
 MAX_TG_COUNT: Final[int] = 10
 
-MY_COMMANDS: Final[list] = [
+PRIVATE_COMMANDS: Final[list] = [
     BotCommand(
         command="/start",
         description="Start working with the bot",
@@ -43,6 +43,13 @@ MY_COMMANDS: Final[list] = [
     ),
 ]
 
+GROUP_COMMANDS: Final[list] = [
+    BotCommand(
+        command="/menu",
+        description="Open the menu",
+    ),
+]
+
 
 def _local_tz():
     return str(tzlocal.get_localzone())
@@ -65,11 +72,13 @@ class Settings(BaseSettings):
     mode: str = "dev"
     without_sending: bool = False
 
-    cron_schedule: str = "*/30 * * * *"
+    scan_schedule: str = "*/30 * * * *"
+    notify_schedule: str = "*/30 * * * *"
+
     request_delay: float = 1
     send_delay: float = 5 * 60
     error_delay: float = 65
-    message_delay: float = 1
+    message_delay: float = 0.5
     attempt_count: int = 3
     tz: str = Field(default_factory=_local_tz)
     check_migrations: bool = False

@@ -4,7 +4,6 @@ from string import punctuation
 from textwrap import shorten
 
 from .database.models import Destination, YouTubeChannel, YouTubeVideo
-from .message_utils import MessageGroups, ScannerMessage
 from .youtube_utils import ScanData
 
 MAX_TITLE_WIDTH = 30
@@ -53,24 +52,20 @@ def fmt_pair(video: YouTubeVideo, tg: Destination) -> str:
     return f"{video.title} ==> {title}"
 
 
-def fmt_groups(groups: MessageGroups, indent: str = "") -> str:
-    if not groups:
-        return ""
-    lines = []
-    for n, group in enumerate(groups, 1):
-        lines.append(f"Group #{n}")
-        for m in group:
-            lines.append(f"{indent}{fmt_pair(m.youtube_video, m.destination)}")
-    return "\n".join(lines)
-
-
-def fmt_message(m: ScannerMessage) -> str:
-    time_str = m.youtube_video.time_ago if m.youtube_video.time_ago else ""
-    tags_line = " ".join("#" + PATTERN.sub("_", tag) for tag in m.tags)
+def make_video_line(v: YouTubeVideo, channel_titles: dict[str, str]) -> str:
+    creation_time_str = v.creation_time.strftime("%H-%M %d.%m.%y")
     return (
-        f"<b>{m.youtube_channel_title}</b>\n"
-        f"{m.youtube_video.title}\n"
-        f"<i>{time_str}</i>\n"
-        f"{m.youtube_video.url}\n"
-        f"{tags_line}"
+        f"<b>{channel_titles[v.channel_id]}</b> "
+        f"<a href='{v.url}'>{v.title}</a> "
+        f"({creation_time_str})"
     )
+
+
+def make_message_text(
+    videos: Iterable[YouTubeVideo],
+    channel_titles: dict[str, str],
+) -> str:
+    lines = []
+    for n, v in enumerate(videos, start=1):
+        lines.append(f"{n}. {make_video_line(v,channel_titles)}")
+    return "\n".join(lines)

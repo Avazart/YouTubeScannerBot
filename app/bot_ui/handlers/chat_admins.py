@@ -3,8 +3,8 @@ import logging
 from aiogram import F, Router
 from aiogram.client.bot import Bot
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.filters import Command
-from aiogram.types import CallbackQuery, Message
+from aiogram.filters import JOIN_TRANSITION, ChatMemberUpdatedFilter, Command
+from aiogram.types import CallbackQuery, ChatMemberUpdated, Message
 
 from ...auxiliary_utils import get_thread_id
 from ...database.models import TelegramChat, TelegramThread
@@ -61,6 +61,16 @@ async def show_main_keyboard(
         original_thread_id=key.thread_id,
     )
     await context.storage.set_data(key, data)
+
+
+@router.my_chat_member(
+    ChatMemberUpdatedFilter(member_status_changed=JOIN_TRANSITION)
+)
+async def bot_added(event: ChatMemberUpdated, context: BotContext):
+    logger.info(f"Bot has been added as a member in chat {event.chat.id}")
+    async with context.session_maker.begin() as session:
+        chat = TelegramChat.from_aiogram_chat(event.chat)
+        await session.merge(chat)
 
 
 @router.message(Command(commands=["start", "help"]))

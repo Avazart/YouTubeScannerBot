@@ -171,10 +171,5 @@ class StatusData(CallbackData, prefix="status"):
     status: Status
 
 
-class VideoLinksRotation(IntEnum):
-    PREVIEW = -1
-    NEXT = 1
-
-
 class VideoLinksData(CallbackData, prefix="video_links"):
-    direction: VideoLinksRotation
+    number: int

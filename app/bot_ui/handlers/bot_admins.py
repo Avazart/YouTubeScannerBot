@@ -34,21 +34,10 @@ from ..keyboards import (
     YTChannelCategoryData,
     build_attach_categories_keyboard,
     build_telegram_tg_keyboard,
-    video_links_keyboard,
 )
 
 logger = logging.getLogger(__name__)
 router = Router(name=__name__)
-
-
-@router.message(Command(commands="test"))
-async def test_video_link_command(message: Message):
-    links = [
-        "https://www.youtube.com/watch?v=WRF1B0z0EPk",
-        "https://www.youtube.com/watch?v=iwxPb0hOR4g",
-        "https://www.youtube.com/watch?v=dRO2c8dj3RY",
-    ]
-    await message.answer("\n".join(links), reply_markup=video_links_keyboard())
 
 
 @router.message(Command(commands="add_channel"))
