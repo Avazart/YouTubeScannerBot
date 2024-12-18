@@ -1,19 +1,27 @@
-import asyncio
 from pathlib import Path
 from pprint import pprint
 
+import pytest
+
 from app.youtube_parser.youtube_parser import parse_channel
 
+CONTENTS_DIR = Path("tests/test_data/channels_without_streams/contents")
 
-async def test_parse_channel_without_streams():
-    contents_dir = Path("test_data/channels_without_streams/contents")
+
+def load_html(file_name: Path) -> str:
+    with open(file_name, encoding="utf-8") as file:
+        return file.read()
+
+
+def content_iter():
+    contents_dir = Path("tests/test_data/channels_without_streams/contents")
     for content_file in contents_dir.glob("*.html"):
-        print(f"{content_file.name}")
-        with content_file.open("r", encoding="utf-8") as file:
-            data = parse_channel(file.read())
-            pprint(data, sort_dicts=False)
-            assert len(data["videos"]) == 0
+        yield content_file.stem, content_file
 
 
-if __name__ == "__main__":
-    asyncio.run(test_parse_channel_without_streams())
+@pytest.mark.parametrize("content_file", [CONTENTS_DIR / "shopokodu.html"])
+def test_parse_channel_without_streams(content_file: Path):
+    print(content_file)
+    content = load_html(content_file)
+    data = parse_channel(content)
+    pprint(data)

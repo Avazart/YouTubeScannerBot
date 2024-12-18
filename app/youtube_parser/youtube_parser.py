@@ -192,20 +192,17 @@ def parse_channel_info(content: str) -> dict:
     tabbed_header_renderer = search.find_first(
         obj,
         search.BySubPath(
-            "c4TabbedHeaderRenderer",
-            "channelId",
+            "microformatDataRenderer",
+            "urlCanonical",
             return_root=True,
         ),
     )
-    channel_id = tabbed_header_renderer.get("channelId")
-    title = tabbed_header_renderer.get("title")
-    canonical_base_url = search.get(
-        tabbed_header_renderer,
-        "navigationEndpoint",
-        "browseEndpoint",
-        "canonicalBaseUrl",
-        default=None,
+    canonical_url = tabbed_header_renderer["urlCanonical"]
+    canonical_base_url = "/" + "/".join(
+        canonical_url.rsplit("/", maxsplit=2)[-2:]
     )
+    channel_id = canonical_url.rsplit("/", maxsplit=1)[-1]
+    title = tabbed_header_renderer.get("title")
     return dict(
         title=title,
         channel_id=channel_id,

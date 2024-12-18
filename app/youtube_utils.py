@@ -60,9 +60,7 @@ def _make_video(data: dict, scan_time, channel_id: int) -> YouTubeVideo:
 async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
     scan_time = datetime.now()
     make_video = partial(
-        _make_video,
-        scan_time=scan_time,
-        channel_id=channel.id,
+        _make_video, scan_time=scan_time, channel_id=channel.id
     )
 
     async with aiohttp.ClientSession() as session:
@@ -75,15 +73,15 @@ async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
         r.raise_for_status()
         data = parse_channel(await r.text())
         videos = list(map(make_video, data["videos"]))
-        # tab_urls = data["tab_urls"]
+        tab_urls = data["tab_urls"]
 
         # streams
         streams = []
-        # if _has_tab(tab_urls, "/streams"):
-        #     r = await session.get(channel.url + "/streams", params=params)
-        #     r.raise_for_status()
-        #     data = parse_channel(await r.text())
-        #     streams = list(map(make_video, data["videos"]))
+        if _has_tab(tab_urls, "/streams"):
+            r = await session.get(channel.url + "/streams", params=params)
+            r.raise_for_status()
+            data = parse_channel(await r.text())
+            streams = list(map(make_video, data["videos"]))
 
         return YouTubeChannelData(videos=videos, streams=streams)
 

@@ -1,7 +1,7 @@
 from typing import Annotated, Final
 
 import pytz
-from pydantic import BaseModel, BeforeValidator
+from pydantic import BaseModel, BeforeValidator, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .logging_utils import LogSettings
@@ -20,7 +20,7 @@ MISFIRE_GRACE_TIME: Final[int] = 10 * 60
 
 
 class BotSettings(BaseModel):
-    token: str
+    token: SecretStr
     admin_ids: frozenset[int]
 
 

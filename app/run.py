@@ -61,7 +61,7 @@ async def run(settings: Settings) -> None:
 
     logger.info("Create bot instance ...")
 
-    bot = Bot(token=settings.bot.token)
+    bot = Bot(token=settings.bot.token.get_secret_value())
     dp = Dispatcher()
 
     bot_admin_filter = BotAdminFilter()
