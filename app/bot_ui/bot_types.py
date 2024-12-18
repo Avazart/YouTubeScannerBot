@@ -1,96 +1,87 @@
-import asyncio
-import copy
-from collections import defaultdict
-from dataclasses import dataclass, field
 from enum import IntEnum, auto
 from typing import NamedTuple
 
-import aiogram
 from aiogram.filters.callback_data import CallbackData
-from aiogram.fsm.state import State
-from aiogram.fsm.storage.base import StateType
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from ..auxiliary_utils import get_thread_id
 from ..settings import Settings
 
-
-@dataclass
-class Data:
-    keyboard_id: int | None = None
-
-    categories_offset: int = 0
-    yt_channels_offset: int = 0
-    tgs_offset: int = 0
-
-    # tgs -> filter -> channel
-    original_chat_id: int | None = None
-    original_thread_id: int | None = None
-
-    # channels -> attach tag_names -> nav_buttons
-    channel_id: int | None = None
-
-    # tag filter -> channels -> nav buttons
-    categories_ids: set[int] = field(default_factory=set)
-
-    back_callback_data: int | None = None
-
-
-@dataclass
-class StorageRecord:
-    data: Data = field(default_factory=Data)
-    state: str | None = None
-
-
-@dataclass(frozen=True)
-class StorageKey:
-    chat_id: int  # original chat_id
-    thread_id: int | None  # original thread_id
-    user_id: int
-
-    @staticmethod
-    def from_message(m: aiogram.types.Message) -> "StorageKey":
-        assert m.from_user
-        return StorageKey(m.chat.id, get_thread_id(m), m.from_user.id)
-
-    @staticmethod
-    def from_callback_query(q: aiogram.types.CallbackQuery) -> "StorageKey":
-        assert q.message and q.message.chat and q.from_user
-        return StorageKey(
-            q.message.chat.id, get_thread_id(q.message), q.from_user.id
-        )
-
-
-class Storage:
-    def __init__(self):
-        self._lock = asyncio.Lock()
-        self._storage = defaultdict(StorageRecord)
-
-    async def get_data(self, key: StorageKey) -> Data:
-        async with self._lock:
-            return copy.deepcopy(self._storage[key].data)
-
-    async def set_data(self, key: StorageKey, data: Data) -> None:
-        async with self._lock:
-            self._storage[key].data = copy.deepcopy(data)
-
-    async def set_state(
-        self, key: StorageKey, state: StateType = None
-    ) -> None:
-        async with self._lock:
-            if isinstance(state, State):
-                self._storage[key].state = state.state
-            else:
-                self._storage[key].state = None
-
-    async def get_state(self, key: StorageKey) -> str | None:
-        async with self._lock:
-            return self._storage[key].state
+# @dataclass
+# class Data:
+#     keyboard_id: int | None = None
+#
+#     categories_offset: int = 0
+#     yt_channels_offset: int = 0
+#     tgs_offset: int = 0
+#
+#     # tgs -> filter -> channel
+#     original_chat_id: int | None = None
+#     original_thread_id: int | None = None
+#
+#     # channels -> attach tag_names -> nav_buttons
+#     channel_id: int | None = None
+#
+#     # tag filter -> channels -> nav buttons
+#     categories_ids: set[int] = field(default_factory=set)
+#
+#     back_callback_data: int | None = None
+#
+#
+# @dataclass
+# class StorageRecord:
+#     data: Data = field(default_factory=Data)
+#     state: str | None = None
+#
+#
+# @dataclass(frozen=True)
+# class StorageKey:
+#     chat_id: int  # original chat_id
+#     thread_id: int | None  # original thread_id
+#     user_id: int
+#
+#     @staticmethod
+#     def from_message(m: aiogram.types.Message) -> "StorageKey":
+#         assert m.from_user
+#         return StorageKey(m.chat.id, get_thread_id(m), m.from_user.id)
+#
+#     @staticmethod
+#     def from_callback_query(q: aiogram.types.CallbackQuery) -> "StorageKey":
+#         assert q.message and q.message.chat and q.from_user
+#         return StorageKey(
+#             q.message.chat.id, get_thread_id(q.message), q.from_user.id
+#         )
+#
+#
+# class Storage:
+#     def __init__(self):
+#         self._lock = asyncio.Lock()
+#         self._storage = defaultdict(StorageRecord)
+#
+#     async def get_data(self, key: StorageKey) -> Data:
+#         async with self._lock:
+#             return copy.deepcopy(self._storage[key].data)
+#
+#     async def set_data(self, key: StorageKey, data: Data) -> None:
+#         async with self._lock:
+#             self._storage[key].data = copy.deepcopy(data)
+#
+#     async def set_state(
+#         self, key: StorageKey, state: StateType = None
+#     ) -> None:
+#         async with self._lock:
+#             if isinstance(state, State):
+#                 self._storage[key].state = state.state
+#             else:
+#                 self._storage[key].state = None
+#
+#     async def get_state(self, key: StorageKey) -> str | None:
+#         async with self._lock:
+#             return self._storage[key].state
 
 
 class BotContext(NamedTuple):
     settings: Settings
-    storage: Storage
+    # storage: Storage
     session_maker: async_sessionmaker
 
 

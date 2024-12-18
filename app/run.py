@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from .bot_ui.bot_types import BotContext, Storage
+from .bot_ui.bot_types import BotContext  # , Storage
 from .bot_ui.filers import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
 from .bot_ui.handlers import bot_admins, chat_admins, chat_users
 from .bot_ui.keyboards import video_links_keyboard
@@ -78,7 +78,7 @@ async def run(settings: Settings) -> None:
     dp.include_routers(
         bot_admins.router, chat_admins.router, chat_users.router
     )
-    context = BotContext(settings, Storage(), session_maker)
+    context = BotContext(settings, session_maker)
     logger.info("Create scheduler ...")
     scheduler = AsyncIOScheduler(timezone=settings.app_tz)
     scan_trigger = CronTrigger.from_crontab(

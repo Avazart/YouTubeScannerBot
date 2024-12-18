@@ -8,29 +8,21 @@ from aiogram.types import CallbackQuery, Message
 from ...auxiliary_utils import split_string
 from ...database.models import Category, YouTubeChannel
 from ...database.utils import (
-    add_yt_channel_category,
     delete_category_by_name,
     delete_channel_by_original_id,
-    delete_yt_channel_category,
-    get_yt_channel_by_id,
     get_yt_channel_id,
-    set_telegram_chat_status,
 )
-from ...settings import MAX_CATEGORY_COUNT, MAX_TG_COUNT
 from ...youtube_utils import get_channel_info
 from ..bot_types import (
     BotContext,
-    Data,
-    Keyboard,
-    NavData,
+    # Data,
     StatusData,
-    StorageKey,
 )
+
+# StorageKey,
 from ..keyboards import (
     AttachCategoryData,
     YTChannelCategoryData,
-    build_attach_categories_keyboard,
-    build_telegram_tg_keyboard,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,19 +58,20 @@ async def add_channel_command(
             text = f'Channel "{channel.title}" {result}'
             await message.reply(text)
 
-            key = StorageKey.from_message(message)
-            data = Data(channel_id=channel.id)
-            assert data.channel_id is not None
-            keyboard = await build_attach_categories_keyboard(
-                data.channel_id,
-                data.categories_offset,
-                MAX_CATEGORY_COUNT,
-                data.back_callback_data,
-                session,
-            )
-            text = f'Select categories for "{channel.title}"'
-            await message.answer(text, reply_markup=keyboard)
-            await context.storage.set_data(key, data)
+            # FIXME:
+            # key = StorageKey.from_message(message)
+            # data = Data(channel_id=channel.id)
+            # assert data.channel_id is not None
+            # keyboard = await build_attach_categories_keyboard(
+            #     data.channel_id,
+            #     data.categories_offset,
+            #     MAX_CATEGORY_COUNT,
+            #     data.back_callback_data,
+            #     session,
+            # )
+            # text = f'Select categories for "{channel.title}"'
+            # await message.answer(text, reply_markup=keyboard)
+            # await context.storage.set_data(key, data)
 
 
 @router.message(Command(commands=["remove_channel"]))
@@ -145,28 +138,30 @@ async def attach_categories_callback(
     callback_data: AttachCategoryData,
     context: BotContext,
 ):
-    key = StorageKey.from_callback_query(query)
-    if data := await context.storage.get_data(key):
-        data.back_callback_data = NavData(keyboard=Keyboard.YT_CHANNELS).pack()
-        data.categories_offset = 0
-        data.channel_id = callback_data.channel_id
-        async with context.session_maker.begin() as session:
-            if channel := await get_yt_channel_by_id(
-                callback_data.channel_id,
-                session,
-            ):
-                keyboard = await build_attach_categories_keyboard(
-                    data.channel_id,
-                    data.categories_offset,
-                    MAX_CATEGORY_COUNT,
-                    data.back_callback_data,
-                    session,
-                )
-                await message.edit_text(
-                    f'Select categories for "{channel.title}"',
-                    reply_markup=keyboard,
-                )
-                await context.storage.set_data(key, data)
+    # FIXME:
+    ...
+    # key = StorageKey.from_callback_query(query)
+    # if data := await context.storage.get_data(key):
+    #     data.back_callback_data = NavData(keyboard=Keyboard.YT_CHANNELS).pack()
+    #     data.categories_offset = 0
+    #     data.channel_id = callback_data.channel_id
+    #     async with context.session_maker.begin() as session:
+    #         if channel := await get_yt_channel_by_id(
+    #             callback_data.channel_id,
+    #             session,
+    #         ):
+    #             keyboard = await build_attach_categories_keyboard(
+    #                 data.channel_id,
+    #                 data.categories_offset,
+    #                 MAX_CATEGORY_COUNT,
+    #                 data.back_callback_data,
+    #                 session,
+    #             )
+    #             await message.edit_text(
+    #                 f'Select categories for "{channel.title}"',
+    #                 reply_markup=keyboard,
+    #             )
+    #             await context.storage.set_data(key, data)
 
 
 @router.callback_query(
@@ -178,29 +173,31 @@ async def yt_channel_category_button_pressed(
     callback_data: YTChannelCategoryData,
     context: BotContext,
 ):
-    key = StorageKey.from_callback_query(query)
-    if data := await context.storage.get_data(key):
-        async with context.session_maker.begin() as session:
-            if callback_data.enabled:
-                await delete_yt_channel_category(
-                    callback_data.category_id,
-                    callback_data.channel_id,
-                    session,
-                )
-            else:
-                await add_yt_channel_category(
-                    callback_data.category_id,
-                    callback_data.channel_id,
-                    session,
-                )
-            keyboard = await build_attach_categories_keyboard(
-                callback_data.channel_id,
-                data.categories_offset,
-                MAX_CATEGORY_COUNT,
-                data.back_callback_data,
-                session,
-            )
-            await message.edit_reply_markup(reply_markup=keyboard)
+    # FIXME:
+    ...
+    # key = StorageKey.from_callback_query(query)
+    # if data := await context.storage.get_data(key):
+    #     async with context.session_maker.begin() as session:
+    #         if callback_data.enabled:
+    #             await delete_yt_channel_category(
+    #                 callback_data.category_id,
+    #                 callback_data.channel_id,
+    #                 session,
+    #             )
+    #         else:
+    #             await add_yt_channel_category(
+    #                 callback_data.category_id,
+    #                 callback_data.channel_id,
+    #                 session,
+    #             )
+    #         keyboard = await build_attach_categories_keyboard(
+    #             callback_data.channel_id,
+    #             data.categories_offset,
+    #             MAX_CATEGORY_COUNT,
+    #             data.back_callback_data,
+    #             session,
+    #         )
+    #         await message.edit_reply_markup(reply_markup=keyboard)
 
 
 @router.callback_query(StatusData.filter(), F.message.as_("message"))
@@ -210,18 +207,20 @@ async def status_button_pressed(
     callback_data: StatusData,
     context: BotContext,
 ):
-    key = StorageKey.from_callback_query(query)
-    if data := await context.storage.get_data(key):
-        async with context.session_maker.begin() as session:
-            await set_telegram_chat_status(
-                callback_data.chat_id,
-                callback_data.status,
-                session,
-            )
-            keyboard = await build_telegram_tg_keyboard(
-                data.tgs_offset,
-                MAX_TG_COUNT,
-                data.back_callback_data,
-                session,
-            )
-            await message.edit_reply_markup(reply_markup=keyboard)
+    # FIXME:
+    ...
+    # key = StorageKey.from_callback_query(query)
+    # if data := await context.storage.get_data(key):
+    #     async with context.session_maker.begin() as session:
+    #         await set_telegram_chat_status(
+    #             callback_data.chat_id,
+    #             callback_data.status,
+    #             session,
+    #         )
+    #         keyboard = await build_telegram_tg_keyboard(
+    #             data.tgs_offset,
+    #             MAX_TG_COUNT,
+    #             data.back_callback_data,
+    #             session,
+    #         )
+    #         await message.edit_reply_markup(reply_markup=keyboard)
