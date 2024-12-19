@@ -13,14 +13,15 @@ from aiogram.types import (
 )
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from dumpable_memory_storage import DumpableMemoryStorage
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 
-from .bot_ui.bot_types import BotContext  # , Storage
-from .bot_ui.filers import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
+from .bot_ui.bot_types import BotContext
+from .bot_ui.filters import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
 from .bot_ui.handlers import bot_admins, chat_admins, chat_users
 from .bot_ui.keyboards import video_links_keyboard
 from .command_menu import GROUP_COMMANDS, PRIVATE_COMMANDS
@@ -59,10 +60,21 @@ async def run(settings: Settings) -> None:
     engine = create_async_engine(settings.database_url, echo=False)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-    logger.info("Create bot instance ...")
-
+    logger.info("Creating a bot instance ...")
     bot = Bot(token=settings.bot.token.get_secret_value())
-    dp = Dispatcher()
+    if settings.redis.use:
+        logger.info("Connecting to the redis storage ...")
+        from aiogram.fsm.storage.redis import RedisStorage
+        from redis.asyncio import from_url
+
+        redis_client = from_url(settings.redis.url.get_secret_value())
+        storage = RedisStorage(redis=redis_client)
+    else:
+        logger.info("Loading the file storage ...")
+        storage = DumpableMemoryStorage(settings.storage_file)
+        storage.load()
+
+    dp = Dispatcher(storage=storage)
 
     bot_admin_filter = BotAdminFilter()
     bot_admins.router.callback_query.filter(bot_admin_filter)

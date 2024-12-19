@@ -4,7 +4,7 @@ from aiogram.client.bot import Bot
 from aiogram.filters import BaseFilter
 from aiogram.types import CallbackQuery, Message
 
-from app.bot_ui.bot_types import BotContext
+from .bot_types import BotContext
 
 logger = logging.getLogger(__name__)
 

@@ -12,17 +12,13 @@ from ...database.utils import (
     delete_channel_by_original_id,
     get_yt_channel_id,
 )
+from ...settings import MAX_CATEGORY_COUNT
 from ...youtube_utils import get_channel_info
-from ..bot_types import (
-    BotContext,
-    # Data,
-    StatusData,
-)
-
-# StorageKey,
+from ..bot_types import BotContext, StatusData
 from ..keyboards import (
     AttachCategoryData,
     YTChannelCategoryData,
+    build_attach_categories_keyboard,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,19 +54,15 @@ async def add_channel_command(
             text = f'Channel "{channel.title}" {result}'
             await message.reply(text)
 
-            # FIXME:
-            # key = StorageKey.from_message(message)
-            # data = Data(channel_id=channel.id)
-            # assert data.channel_id is not None
-            # keyboard = await build_attach_categories_keyboard(
-            #     data.channel_id,
-            #     data.categories_offset,
-            #     MAX_CATEGORY_COUNT,
-            #     data.back_callback_data,
-            #     session,
-            # )
-            # text = f'Select categories for "{channel.title}"'
-            # await message.answer(text, reply_markup=keyboard)
+            keyboard = await build_attach_categories_keyboard(
+                yt_channel_id=channel.id,
+                offset=0,
+                count=MAX_CATEGORY_COUNT,
+                back_callback_data=None,
+                session=session,
+            )
+            text = f'Select categories for "{channel.title}"'
+            await message.answer(text, reply_markup=keyboard)
             # await context.storage.set_data(key, data)
 
 
@@ -142,7 +134,8 @@ async def attach_categories_callback(
     ...
     # key = StorageKey.from_callback_query(query)
     # if data := await context.storage.get_data(key):
-    #     data.back_callback_data = NavData(keyboard=Keyboard.YT_CHANNELS).pack()
+    #     data.back_callback_data = NavData(
+    #     keyboard=Keyboard.YT_CHANNELS).pack()
     #     data.categories_offset = 0
     #     data.channel_id = callback_data.channel_id
     #     async with context.session_maker.begin() as session:

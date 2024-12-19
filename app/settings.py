@@ -25,7 +25,8 @@ class BotSettings(BaseModel):
 
 
 class RedisSettings(BaseModel):
-    url: str
+    use: bool
+    url: SecretStr
     queue: str = "youtube_scanner:queue"
 
 
@@ -34,7 +35,8 @@ class Settings(BaseSettings):
 
     log: LogSettings
     bot: BotSettings
-    # redis: RedisSettings
+    redis: RedisSettings
+    storage_file: str
     database_url: str
 
     without_sending: bool = False
