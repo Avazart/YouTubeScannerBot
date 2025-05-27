@@ -23,7 +23,7 @@ class Menu(StatesGroup):
 
 
 class History:
-    def __init__(self, lst: list[str] = None):
+    def __init__(self, lst: list[str| None] | None = None):
         self._lst = lst or []
         logger.debug("Load %s", self)
 
@@ -43,7 +43,7 @@ class History:
     def __repr__(self):
         return f"History({self._lst})"
 
-    def append(self, value: str) -> None:
+    def append(self, value: str | None) -> None:
         if self._lst:
             if self._lst[-1] != value:
                 self._lst.append(value)

@@ -221,7 +221,7 @@ class Forwarding(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
             onupdate="CASCADE",
         ),
     )
-    telegram_thread_id: Mapped[int] = mapped_column(
+    telegram_thread_id: Mapped[int | None] = mapped_column(
         ForeignKey(
             TelegramThread.id,
             ondelete="CASCADE",
@@ -388,7 +388,7 @@ class ForwardedVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         ),
         nullable=False,
     )
-    thread_id: Mapped[int] = mapped_column(
+    thread_id: Mapped[int | None] = mapped_column(
         ForeignKey(
             TelegramThread.id,
             ondelete="CASCADE",

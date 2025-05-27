@@ -6,7 +6,6 @@ from logging import getLogger
 from pathlib import Path
 
 import colorama
-from dotenv import load_dotenv
 
 from .logging_utils import init_logging
 from .run import run
@@ -33,9 +32,11 @@ def main() -> int:
         help="Path to the environment variables file",
     )
     args = parser.parse_args()
-    load_dotenv(args.env_file)
     try:
-        settings = Settings()
+        settings = Settings(
+            _env_file=args.env_file,  # noqa
+            _env_nested_delimiter="__",  # noqa
+        )  # noqa
         init_logging(settings.log, settings.app_tz)
     except Exception as e:
         print('Error occurred: %s "%s"', type(e), e, file=sys.stderr)

@@ -15,7 +15,7 @@ from ..database.utils import (
     get_yt_channel_categories,
     get_yt_channels,
 )
-from ..settings import KEYBOARD_COLUMN_COUNT
+from ..constants import KEYBOARD_COLUMN_COUNT
 from .bot_types import (
     AttachCategoryData,
     BackData,
@@ -401,7 +401,7 @@ async def build_attach_categories_keyboard(
 
 
 def video_links_keyboard(selected: int, total: int) -> InlineKeyboardMarkup:
-    buttons = [[]]
+    buttons: list[list[InlineKeyboardButton]] = [[]]
     for n in range(1, total + 1):
         if n != selected:
             button = InlineKeyboardButton(

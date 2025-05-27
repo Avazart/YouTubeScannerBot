@@ -1,22 +1,12 @@
-from typing import Annotated, Final
+from typing import Annotated
+from zoneinfo import ZoneInfo
 
-import pytz
 from pydantic import BaseModel, BeforeValidator, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .logging_utils import LogSettings
 
-MIN_MEMBER_COUNT: Final[int] = 10
-
-LAST_DAYS_ON_PAGE: Final[int] = 7
-LAST_DAYS_IN_DB: Final[int] = 7
-
-KEYBOARD_COLUMN_COUNT: Final[int] = 4
-
-MAX_YT_CHANNEL_COUNT: Final[int] = 10
-MAX_CATEGORY_COUNT: Final[int] = 40
-MAX_TG_COUNT: Final[int] = 10
-MISFIRE_GRACE_TIME: Final[int] = 10 * 60
+TimeZone = Annotated[ZoneInfo, BeforeValidator(ZoneInfo)]
 
 
 class BotSettings(BaseModel):
@@ -31,7 +21,7 @@ class RedisSettings(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_nested_delimiter="__")
+    model_config = SettingsConfigDict(extra="allow")
 
     log: LogSettings
     bot: BotSettings
@@ -48,5 +38,5 @@ class Settings(BaseSettings):
     error_delay: float = 65
     message_delay: float = 0.5
     attempt_count: int = 3
-    app_tz: Annotated[pytz.BaseTzInfo, BeforeValidator(pytz.timezone)]
+    app_tz: TimeZone
     parse_tags: bool = False

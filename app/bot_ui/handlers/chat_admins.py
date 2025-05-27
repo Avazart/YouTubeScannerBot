@@ -15,8 +15,12 @@ from aiogram.types import CallbackQuery, ChatMemberUpdated, Message
 
 from ...auxiliary_utils import get_thread_id
 from ...database.models import TelegramChat, TelegramThread
-from ...database.utils import get_destinations
-from ...settings import MAX_CATEGORY_COUNT, MAX_TG_COUNT, MAX_YT_CHANNEL_COUNT
+from ...database.utils import (
+    add_forwarding,
+    delete_forwarding,
+    get_destinations,
+)
+from ...constants import MAX_CATEGORY_COUNT, MAX_TG_COUNT, MAX_YT_CHANNEL_COUNT
 from .. import schemas
 from ..bot_types import (
     BackData,
@@ -25,7 +29,6 @@ from ..bot_types import (
     CloseData,
     History,
     Menu,
-    PageData,
     Status,
     TelegramsMenuData,
     TgData,

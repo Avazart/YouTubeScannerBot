@@ -52,7 +52,7 @@ def fmt_pair(video: YouTubeVideo, tg: Destination) -> str:
     return f"{video.title} ==> {title}"
 
 
-def make_video_line(v: YouTubeVideo, channel_titles: dict[str, str]) -> str:
+def make_video_line(v: YouTubeVideo, channel_titles: dict[int, str]) -> str:
     creation_time_str = v.creation_time.strftime("%H-%M %d.%m.%y")
     return (
         f"<b>{channel_titles[v.channel_id]}</b> "
@@ -63,7 +63,7 @@ def make_video_line(v: YouTubeVideo, channel_titles: dict[str, str]) -> str:
 
 def make_message_text(
     videos: Iterable[YouTubeVideo],
-    channel_titles: dict[str, str],
+    channel_titles: dict[int, str],
 ) -> str:
     lines = []
     for n, v in enumerate(videos, start=1):

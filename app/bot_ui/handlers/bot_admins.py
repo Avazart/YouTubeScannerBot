@@ -7,6 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from ...auxiliary_utils import split_string
+from ...constants import MAX_CATEGORY_COUNT, MAX_TG_COUNT
 from ...database.models import Category, YouTubeChannel
 from ...database.utils import (
     add_yt_channel_category,
@@ -17,7 +18,6 @@ from ...database.utils import (
     get_yt_channel_id,
     set_telegram_chat_status,
 )
-from ...settings import MAX_CATEGORY_COUNT, MAX_TG_COUNT
 from ...youtube_utils import get_channel_info
 from .. import schemas
 from ..bot_types import BotContext, Menu, StatusData
