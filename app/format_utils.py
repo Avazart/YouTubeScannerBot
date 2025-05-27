@@ -67,5 +67,5 @@ def make_message_text(
 ) -> str:
     lines = []
     for n, v in enumerate(videos, start=1):
-        lines.append(f"{n}. {make_video_line(v,channel_titles)}")
+        lines.append(f"{n}. {make_video_line(v, channel_titles)}")
     return "\n".join(lines)

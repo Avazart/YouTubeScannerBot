@@ -18,13 +18,15 @@ from ..database.utils import (
 from ..settings import KEYBOARD_COLUMN_COUNT
 from .bot_types import (
     AttachCategoryData,
-    CategoryFilterData,
+    BackData,
+    CategoriesMenuData,
+    CategoryData,
     ChannelData,
+    ChannelsMenuData,
     CloseData,
-    Keyboard,
-    NavData,
     PageData,
     StatusData,
+    TelegramsMenuData,
     TgData,
     VideoLinksData,
     YTChannelCategoryData,
@@ -34,18 +36,17 @@ from .bot_types import (
 def _nav_buttons(
     prev_offset: int | None,
     next_offset: int | None,
-    keyboard: Keyboard,
 ) -> list[InlineKeyboardButton]:
     nav_buttons = []
     if prev_offset is not None:
-        prev_data = PageData(keyboard=keyboard, offset=prev_offset)
+        prev_data = PageData(offset=prev_offset)
         prev_button = InlineKeyboardButton(
             text="⬅  Prev",
             callback_data=prev_data.pack(),
         )
         nav_buttons.append(prev_button)
     if next_offset is not None:
-        next_data = PageData(keyboard=keyboard, offset=next_offset)
+        next_data = PageData(offset=next_offset)
         next_button = InlineKeyboardButton(
             text="Next  ➡",
             callback_data=next_data.pack(),
@@ -62,14 +63,14 @@ def build_main_keyboard(is_owner: bool) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(
                 text="YouTube channels",
-                callback_data=NavData(keyboard=Keyboard.CATEGORY).pack(),
+                callback_data=CategoriesMenuData().pack(),
             )
         ]
     ]
     if is_owner:
         button = InlineKeyboardButton(
             text="Telegram chats and threads",
-            callback_data=NavData(keyboard=Keyboard.TG_OBJECTS).pack(),
+            callback_data=TelegramsMenuData().pack(),
         )
         buttons.append([button])
 
@@ -93,7 +94,7 @@ def _channel_buttons(
 ) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for channel, enabled in rows:
-        text = f'{"✅" if enabled else " "} {channel.title}'
+        text = f"{'✅' if enabled else ' '} {channel.title}"
         assert channel.id is not None
         data = ChannelData(id=channel.id, enabled=enabled)
         check_button = InlineKeyboardButton(
@@ -120,18 +121,13 @@ def _channel_keyboard(
     is_owner: bool,
     prev_offset: int | None,
     next_offset: int | None,
-    back_callback_data: str | None,
 ) -> InlineKeyboardMarkup:
     buttons = _channel_buttons(rows, is_owner)
-    if nav_buttons := _nav_buttons(
-        prev_offset,
-        next_offset,
-        Keyboard.YT_CHANNELS,
-    ):
+    if nav_buttons := _nav_buttons(prev_offset, next_offset):
         buttons.append(nav_buttons)
     back_button = InlineKeyboardButton(
         text="Back",
-        callback_data=back_callback_data,
+        callback_data=BackData().pack(),
     )
     close_button = InlineKeyboardButton(
         text="Close",
@@ -146,15 +142,15 @@ def _channel_keyboard(
 
 def _category_buttons(
     categories: list[Category],
-    checked_category_ids: set[int],
+    selected: set[int],
 ) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for row in batched_evenly(categories, KEYBOARD_COLUMN_COUNT):
         row_buttons = []
         for category in row:
-            checked = category.id in checked_category_ids
-            text = f'{"✅" if checked else "🟩"} {category.name}'
-            data = CategoryFilterData(id=category.id)
+            checked = category.id in selected
+            text = f"{'✅' if checked else '🟩'} {category.name}"
+            data = CategoryData(id=category.id)
             category_button = InlineKeyboardButton(
                 text=text,
                 callback_data=data.pack(),
@@ -166,21 +162,16 @@ def _category_buttons(
 
 def _categories_keyboard(
     categories: list[Category],
-    checked_category_ids: set[int],
+    selected_categories: set[int],
     prev_offset: int | None,
     next_offset: int | None,
-    back_callback_data: str | None,
 ) -> InlineKeyboardMarkup:
-    buttons = _category_buttons(categories, checked_category_ids)
-    if nav_buttons := _nav_buttons(
-        prev_offset,
-        next_offset,
-        Keyboard.CATEGORY,
-    ):
+    buttons = _category_buttons(categories, selected_categories)
+    if nav_buttons := _nav_buttons(prev_offset, next_offset):
         buttons.append(nav_buttons)
     back_button = InlineKeyboardButton(
         text="Back",
-        callback_data=back_callback_data,
+        callback_data=BackData().pack(),
     )
     close_button = InlineKeyboardButton(
         text="Close",
@@ -188,7 +179,7 @@ def _categories_keyboard(
     )
     apply_button = InlineKeyboardButton(
         text="Apply",
-        callback_data=NavData(keyboard=Keyboard.YT_CHANNELS).pack(),
+        callback_data=ChannelsMenuData().pack(),
     )
     buttons.append([back_button, close_button, apply_button])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -205,9 +196,9 @@ def _attach_categories_buttons(
     for row in batched_evenly(category_records, KEYBOARD_COLUMN_COUNT):
         row_buttons = []
         for category, enable in row:
-            text = f'{"✅" if enable else " "} {category.name}'
+            text = f"{'✅' if enable else ' '} {category.name}"
             data = YTChannelCategoryData(
-                category_id=category.id,
+                category_id=category.channel_id,
                 channel_id=yt_channel_id,
                 enabled=enable,
             )
@@ -228,11 +219,7 @@ def _attach_categories_keyboard(
     back_callback_data: str | None,
 ) -> InlineKeyboardMarkup:
     buttons = _attach_categories_buttons(category_records, yt_channel_id)
-    if nav_buttons := _nav_buttons(
-        prev_offset,
-        next_offset,
-        Keyboard.ATTACH_CATEGORIES,
-    ):
+    if nav_buttons := _nav_buttons(prev_offset, next_offset):
         buttons.append(nav_buttons)
     close_button = InlineKeyboardButton(
         text="Close",
@@ -300,18 +287,15 @@ def _tg_objects_buttons(
 
 
 def _tgs_keyboard(
-    tgs: list[Destination],
-    prev_offset: int | None,
-    next_offset: int | None,
-    back_callback_data: str | None,
+    tgs: list[Destination], prev_offset: int | None, next_offset: int | None
 ) -> InlineKeyboardMarkup:
     buttons = _tg_objects_buttons(tgs)
-    nav_button = _nav_buttons(prev_offset, next_offset, Keyboard.TG_OBJECTS)
+    nav_button = _nav_buttons(prev_offset, next_offset)
     if nav_button:
         buttons.append(nav_button)
     back_button = InlineKeyboardButton(
         text="Back",
-        callback_data=back_callback_data,
+        callback_data=BackData().pack(),
     )
     close_button = InlineKeyboardButton(
         text="Close",
@@ -337,7 +321,6 @@ async def build_channel_keyboard(
     offset: int,
     count: int,
     categories_ids: set,
-    back_callback_data: str | None,
     session: AsyncSession,
 ):
     rows = await get_yt_channels(
@@ -355,7 +338,6 @@ async def build_channel_keyboard(
         is_owner,
         prev_offset,
         next_offset,
-        back_callback_data,
     )
     return keyboard
 
@@ -363,8 +345,7 @@ async def build_channel_keyboard(
 async def build_category_filter_keyboard(
     offset: int,
     count: int,
-    checked_category_ids: set[int],
-    back_callback_data: str | None,
+    selected_categories: set[int],
     session: AsyncSession,
 ) -> InlineKeyboardMarkup:
     categories = await get_categories(offset, count + 1, session)
@@ -372,10 +353,9 @@ async def build_category_filter_keyboard(
     next_offset = offset + count if len(categories) > count else None
     keyboard = _categories_keyboard(
         categories[:count],
-        checked_category_ids,
+        selected_categories,
         prev_offset,
         next_offset,
-        back_callback_data,
     )
     return keyboard
 
@@ -383,7 +363,6 @@ async def build_category_filter_keyboard(
 async def build_telegram_tg_keyboard(
     offset: int,
     count: int,
-    back_callback_data: str | None,
     session: AsyncSession,
 ):
     tgs = await get_tgs(offset, count + 1, session)
@@ -393,7 +372,6 @@ async def build_telegram_tg_keyboard(
         tgs[:count],
         prev_offset,
         next_offset,
-        back_callback_data,
     )
     return keyboard
 
@@ -402,7 +380,6 @@ async def build_attach_categories_keyboard(
     yt_channel_id: int,
     offset: int,
     count: int,
-    back_callback_data: str | None,
     session: AsyncSession,
 ):
     category_records = await get_yt_channel_categories(
@@ -418,7 +395,7 @@ async def build_attach_categories_keyboard(
         yt_channel_id,
         prev_offset,
         next_offset,
-        back_callback_data,
+        None,
     )
     return keyboard
 

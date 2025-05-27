@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_active_yt_channels(
-    session: AsyncSession
+    session: AsyncSession,
 ) -> list[YouTubeChannel]:
     q = (
         select(YouTubeChannel)

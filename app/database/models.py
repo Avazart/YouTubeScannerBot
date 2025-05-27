@@ -240,7 +240,7 @@ class Forwarding(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
     )
 
     def __eq__(self, other):
-        return self.id == other.id
+        return self.id == other.channel_id
 
 
 class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
@@ -320,7 +320,7 @@ class Category(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return hash(self.id)
 
     def __eq__(self, other):
-        return self.id == other.id
+        return self.id == other.channel_id
 
 
 class YTChannelCategory(MappedAsDataclass, Base, unsafe_hash=False, eq=False):

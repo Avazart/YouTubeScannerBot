@@ -38,7 +38,7 @@ def main() -> int:
         settings = Settings()
         init_logging(settings.log, settings.app_tz)
     except Exception as e:
-        print(f'Error occurred: "{e}"', file=sys.stderr)
+        print('Error occurred: %s "%s"', type(e), e, file=sys.stderr)
         return 1
 
     try:
@@ -48,7 +48,7 @@ def main() -> int:
     except KeyboardInterrupt:  # Ctrl+C
         logger.warning("Interrupted by user.")
     except BaseException as e:
-        logger.exception(f'Error occurred: "{e}"')
+        logger.exception('Error occurred: %s "%s"', type(e), e)
         return 1
     return 0
 

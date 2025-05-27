@@ -3,22 +3,29 @@ import logging
 import aiohttp
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from ...auxiliary_utils import split_string
 from ...database.models import Category, YouTubeChannel
 from ...database.utils import (
+    add_yt_channel_category,
     delete_category_by_name,
     delete_channel_by_original_id,
+    delete_yt_channel_category,
+    get_yt_channel_by_id,
     get_yt_channel_id,
+    set_telegram_chat_status,
 )
-from ...settings import MAX_CATEGORY_COUNT
+from ...settings import MAX_CATEGORY_COUNT, MAX_TG_COUNT
 from ...youtube_utils import get_channel_info
-from ..bot_types import BotContext, StatusData
+from .. import schemas
+from ..bot_types import BotContext, Menu, StatusData
 from ..keyboards import (
     AttachCategoryData,
     YTChannelCategoryData,
     build_attach_categories_keyboard,
+    build_telegram_tg_keyboard,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,6 +37,7 @@ async def add_channel_command(
     message: Message,
     command: CommandObject,
     context: BotContext,
+    state: FSMContext,
 ):
     if args := command.args and split_string(command.args, " ", 1):
         try:
@@ -48,22 +56,29 @@ async def add_channel_command(
                 session.add(channel)
             await session.commit()
 
-            result = (
-                "already exists!" if already_exists else "successfully added."
-            )
-            text = f'Channel "{channel.title}" {result}'
+            if already_exists:
+                result = "already exists!"
+            else:
+                result = "successfully added."
+            text = f'ChannelMenuData "{channel.title}" {result}'
             await message.reply(text)
 
+            # ATTACH CATEGORY
             keyboard = await build_attach_categories_keyboard(
                 yt_channel_id=channel.id,
                 offset=0,
                 count=MAX_CATEGORY_COUNT,
-                back_callback_data=None,
                 session=session,
             )
             text = f'Select categories for "{channel.title}"'
             await message.answer(text, reply_markup=keyboard)
-            # await context.storage.set_data(key, data)
+            await state.set_state(Menu.CATEGORIES)
+
+            data = schemas.StateData(
+                channel=schemas.ChannelMenuData(id=channel.id, offset=0),
+                category=schemas.CategoryMenuData(),
+            )
+            await state.set_data(data.model_dump())
 
 
 @router.message(Command(commands=["remove_channel"]))
@@ -82,9 +97,9 @@ async def remove_channel_command(
                 else:
                     channel_id = arg
                 await delete_channel_by_original_id(channel_id, session)
-            await message.reply("Channel removed.")
+            await message.reply("ChannelMenuData removed.")
         else:
-            await message.reply("Channel url missing!")
+            await message.reply("ChannelMenuData url missing!")
     except Exception as e:
         await message.reply("I can't remove this channel!")
         raise e
@@ -99,9 +114,9 @@ async def add_category(
     if command.args and (args := command.args.strip().split()):
         try:
             category_name, category_order = args[0], int(args[1])
-            tag = Category(name=category_name, order=category_order)
+            category = Category(name=category_name, order=category_order)
             async with context.session_maker.begin() as session:
-                await session.merge(tag)
+                await session.merge(category)
             await message.reply("Successfully added.")
         except (ValueError, IndexError):
             await message.reply("Wrong args")
@@ -125,72 +140,63 @@ async def remove_category(
 
 @router.callback_query(AttachCategoryData.filter(), F.message.as_("message"))
 async def attach_categories_callback(
-    query: CallbackQuery,
+    _query: CallbackQuery,
     message: Message,
     callback_data: AttachCategoryData,
     context: BotContext,
+    state: FSMContext,
 ):
-    # FIXME:
-    ...
-    # key = StorageKey.from_callback_query(query)
-    # if data := await context.storage.get_data(key):
-    #     data.back_callback_data = NavData(
-    #     keyboard=Keyboard.YT_CHANNELS).pack()
-    #     data.categories_offset = 0
-    #     data.channel_id = callback_data.channel_id
-    #     async with context.session_maker.begin() as session:
-    #         if channel := await get_yt_channel_by_id(
-    #             callback_data.channel_id,
-    #             session,
-    #         ):
-    #             keyboard = await build_attach_categories_keyboard(
-    #                 data.channel_id,
-    #                 data.categories_offset,
-    #                 MAX_CATEGORY_COUNT,
-    #                 data.back_callback_data,
-    #                 session,
-    #             )
-    #             await message.edit_text(
-    #                 f'Select categories for "{channel.title}"',
-    #                 reply_markup=keyboard,
-    #             )
-    #             await context.storage.set_data(key, data)
+    data = schemas.StateData(**(await state.get_data()))
+    assert data.channel
+    assert data.category
+
+    async with context.session_maker.begin() as session:
+        if channel := await get_yt_channel_by_id(
+            data.channel.channel_id, session
+        ):
+            keyboard = await build_attach_categories_keyboard(
+                data.channel.channel_id,
+                data.category.offset,
+                MAX_CATEGORY_COUNT,
+                session,
+            )
+            text = f'Select categories for "{channel.title}"'
+            await message.edit_text(text, reply_markup=keyboard)
 
 
 @router.callback_query(
     YTChannelCategoryData.filter(), F.message.as_("message")
 )
 async def yt_channel_category_button_pressed(
-    query: CallbackQuery,
+    _query: CallbackQuery,
     message: Message,
     callback_data: YTChannelCategoryData,
     context: BotContext,
+    state: FSMContext,
 ):
-    # FIXME:
-    ...
-    # key = StorageKey.from_callback_query(query)
-    # if data := await context.storage.get_data(key):
-    #     async with context.session_maker.begin() as session:
-    #         if callback_data.enabled:
-    #             await delete_yt_channel_category(
-    #                 callback_data.category_id,
-    #                 callback_data.channel_id,
-    #                 session,
-    #             )
-    #         else:
-    #             await add_yt_channel_category(
-    #                 callback_data.category_id,
-    #                 callback_data.channel_id,
-    #                 session,
-    #             )
-    #         keyboard = await build_attach_categories_keyboard(
-    #             callback_data.channel_id,
-    #             data.categories_offset,
-    #             MAX_CATEGORY_COUNT,
-    #             data.back_callback_data,
-    #             session,
-    #         )
-    #         await message.edit_reply_markup(reply_markup=keyboard)
+    data = schemas.StateData(**(await state.get_data()))
+    assert data.category
+
+    async with context.session_maker.begin() as session:
+        if callback_data.enabled:
+            await delete_yt_channel_category(
+                callback_data.category_id,
+                callback_data.channel_id,
+                session,
+            )
+        else:
+            await add_yt_channel_category(
+                callback_data.category_id,
+                callback_data.channel_id,
+                session,
+            )
+        keyboard = await build_attach_categories_keyboard(
+            callback_data.channel_id,
+            data.category.offset,  # !!!
+            MAX_CATEGORY_COUNT,
+            session,
+        )
+        await message.edit_reply_markup(reply_markup=keyboard)
 
 
 @router.callback_query(StatusData.filter(), F.message.as_("message"))
@@ -199,21 +205,22 @@ async def status_button_pressed(
     message: Message,
     callback_data: StatusData,
     context: BotContext,
+    state: FSMContext,
 ):
-    # FIXME:
-    ...
-    # key = StorageKey.from_callback_query(query)
-    # if data := await context.storage.get_data(key):
-    #     async with context.session_maker.begin() as session:
-    #         await set_telegram_chat_status(
-    #             callback_data.chat_id,
-    #             callback_data.status,
-    #             session,
-    #         )
-    #         keyboard = await build_telegram_tg_keyboard(
-    #             data.tgs_offset,
-    #             MAX_TG_COUNT,
-    #             data.back_callback_data,
-    #             session,
-    #         )
-    #         await message.edit_reply_markup(reply_markup=keyboard)
+    data = schemas.StateData(**(await state.get_data()))
+    # assert data.channel
+    # assert data.category
+    assert data.tg_obj
+
+    async with context.session_maker.begin() as session:
+        await set_telegram_chat_status(
+            callback_data.chat_id,
+            callback_data.status,
+            session,
+        )
+        keyboard = await build_telegram_tg_keyboard(
+            data.tg_obj.offset,
+            MAX_TG_COUNT,
+            session,
+        )
+        await message.edit_reply_markup(reply_markup=keyboard)

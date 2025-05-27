@@ -7,6 +7,7 @@ import aiohttp
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ChatType, ParseMode
 from aiogram.filters import or_f
+from aiogram.fsm.strategy import FSMStrategy
 from aiogram.types import (
     BotCommandScopeAllGroupChats,
     BotCommandScopeAllPrivateChats,
@@ -74,7 +75,7 @@ async def run(settings: Settings) -> None:
         storage = DumpableMemoryStorage(settings.storage_file)
         storage.load()
 
-    dp = Dispatcher(storage=storage)
+    dp = Dispatcher(storage=storage, fsm_strategy=FSMStrategy.USER_IN_TOPIC)
 
     bot_admin_filter = BotAdminFilter()
     bot_admins.router.callback_query.filter(bot_admin_filter)
@@ -88,7 +89,9 @@ async def run(settings: Settings) -> None:
     chat_admins.router.callback_query.filter(chat_admin_filter)
 
     dp.include_routers(
-        bot_admins.router, chat_admins.router, chat_users.router
+        bot_admins.router,
+        chat_admins.router,
+        chat_users.router,
     )
     context = BotContext(settings, session_maker)
     logger.info("Create scheduler ...")
@@ -125,13 +128,13 @@ async def run(settings: Settings) -> None:
 async def scan(session_maker, settings: Settings) -> None:
     async with session_maker() as session:
         channels = await get_active_yt_channels(session)
-        logger.info(f"Channel count {len(channels)}")
+        logger.info("ChannelMenuData count %d", len(channels))
 
         logger.info("Scan youtube channels ...")
         videos = await scan_youtube_channels(channels, settings.request_delay)
         recent_videos = get_recent_videos(videos, LAST_DAYS_ON_PAGE)
 
-        logger.info(f"Recent videos: {len(recent_videos)}")
+        logger.info("Recent videos: %d", len(recent_videos))
         # logger.debug(pformat(recent_videos))
         if recent_videos:
             await insert_videos(session, recent_videos)
@@ -153,13 +156,12 @@ async def notify(session_maker, settings: Settings, bot: Bot) -> None:
                 session, dest, channels, last_days=LAST_DAYS_IN_DB, limit=limit
             )
             logger.info(
-                "{chat}{thread} videos: {count}".format(
-                    chat=dest.chat.title or dest.chat.first_name,
-                    thread=("/" + dest.thread.title)
-                    if dest.thread and dest.thread.title
-                    else "",
-                    count=len(videos),
-                )
+                "%s%s videos: %d",
+                dest.chat.title or dest.chat.first_name,
+                ("/" + dest.thread.title)
+                if dest.thread and dest.thread.title
+                else "",
+                len(videos),
             )
 
             if videos:
@@ -218,12 +220,14 @@ async def scan_youtube_channels(
         logger.debug(f"{i}/{len(channels)} " + fmt_channel(channel))
         try:
             result.extend(await get_channel_data(channel))
-        except (aiohttp.ClientConnectorError, asyncio.TimeoutError) as e:
+        except (TimeoutError, aiohttp.ClientConnectorError) as e:
             logger.error(
-                f"Scan error {channel.title}\n{channel.url}\n{type(e)}"
+                "Scan error %s\n%s\n%s", channel.title, channel.url, type(e)
             )
         except search.SearchError:
-            logger.exception(f"Search error {channel.title}\n{channel.url}")
+            logger.exception(
+                "Search error %s\n%s", channel.title, channel.title
+            )
         except Exception as e:
             logger.exception(e)
         await asyncio.sleep(request_delay)
