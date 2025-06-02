@@ -25,11 +25,7 @@ from .bot_ui.filters import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
 from .bot_ui.handlers import bot_admins, chat_admins, chat_users
 from .bot_ui.keyboards import video_links_keyboard
 from .command_menu import GROUP_COMMANDS, PRIVATE_COMMANDS
-from .constants import (
-    LAST_DAYS_IN_DB,
-    LAST_DAYS_ON_PAGE,
-    MISFIRE_GRACE_TIME,
-)
+from .constants import LAST_DAYS_IN_DB, LAST_DAYS_ON_PAGE, MISFIRE_GRACE_TIME
 from .database.models import Destination, YouTubeChannel, YouTubeVideo
 from .database.utils import (
     add_forwarded_videos,

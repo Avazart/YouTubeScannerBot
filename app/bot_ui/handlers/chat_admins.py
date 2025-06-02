@@ -14,13 +14,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, ChatMemberUpdated, Message
 
 from ...auxiliary_utils import get_thread_id
+from ...constants import MAX_CATEGORY_COUNT, MAX_TG_COUNT, MAX_YT_CHANNEL_COUNT
 from ...database.models import TelegramChat, TelegramThread
 from ...database.utils import (
     add_forwarding,
     delete_forwarding,
     get_destinations,
 )
-from ...constants import MAX_CATEGORY_COUNT, MAX_TG_COUNT, MAX_YT_CHANNEL_COUNT
 from .. import schemas
 from ..bot_types import (
     BackData,
@@ -38,6 +38,7 @@ from ..keyboards import (
     CategoryData,
     ChannelData,
     PageData,
+    build_attach_categories_keyboard,
     build_category_filter_keyboard,
     build_channel_keyboard,
     build_main_keyboard,
@@ -188,7 +189,7 @@ async def show_telegrams_menu(
     Menu.CATEGORIES,
     ChannelsMenuData.filter(),
     F.message.as_("message"),
-    F.message.from_user.as_("from_user"),
+    F.from_user.as_("from_user"),
 )
 async def show_channels_menu(
     _query: CallbackQuery,
@@ -205,23 +206,20 @@ async def show_channels_menu(
         return
 
     from_state = data.history[-3]
-
     match from_state:
         case Menu.MAIN.state:
-            chat_id = message.chat.id
-            thread_id = message.message_thread_id
+            data.chat_id = message.chat.id
+            data.thread_id = message.message_thread_id
         case Menu.TELEGRAMS.state:
             assert data.chat_id is not None
-            chat_id = data.chat_id
-            thread_id = data.thread_id
         case _:
             logger.warning('State "%s" is wrong!', from_state)
             return
 
     async with context.session_maker.begin() as session:
         keyboard = await build_channel_keyboard(
-            chat_id,
-            thread_id,
+            data.chat_id,
+            data.thread_id,
             from_user.id in context.settings.bot.admin_ids,
             data.channels_menu_offset,
             MAX_YT_CHANNEL_COUNT,
@@ -234,61 +232,58 @@ async def show_channels_menu(
     await state.set_data(data.model_dump())
 
 
-@router.callback_query(PageData.filter(), F.message.as_("message"))
-async def nav_button_pressed(
-    query: CallbackQuery,
+@router.callback_query(
+    PageData.filter(), F.message.as_("message"), F.from_user.as_("from_user")
+)
+async def navigate(
+    _query: CallbackQuery,
     message: Message,
+    from_user: User,
     callback_data: PageData,
+    state: FSMContext,
     context: BotContext,
 ):
-    # FIXME
-    ...
-    # key = StorageKey.from_callback_query(query)
-    # if data := await context.storage.get_data(key):
-    #     async with context.session_maker.begin() as session:
-    #         match callback_data.keyboard:
-    #             case Keyboard.CATEGORY:
-    #                 data.categories_offset = callback_data.offset
-    #                 keyboard = await build_category_filter_keyboard(
-    #                     data.categories_offset,
-    #                     MAX_CATEGORY_COUNT,
-    #                     data.categories_ids,
-    #                     data.back_callback_data,
-    #                     session,
-    #                 )
-    #             case Keyboard.TG_OBJECTS:
-    #                 data.tgs_offset = callback_data.offset
-    #                 keyboard = await build_telegram_tg_keyboard(
-    #                     data.tgs_offset,
-    #                     MAX_TG_COUNT,
-    #                     data.back_callback_data,
-    #                     session,
-    #                 )
-    #             case Keyboard.YT_CHANNELS:
-    #                 data.yt_channels_offset = callback_data.offset
-    #                 assert data.original_chat_id is not None  # FIXME
-    #                 keyboard = await build_channel_keyboard(
-    #                     data.original_chat_id,
-    #                     data.original_thread_id,
-    #                     key.user_id in context.settings.bot.admin_ids,
-    #                     data.yt_channels_offset,
-    #                     MAX_YT_CHANNEL_COUNT,
-    #                     data.categories_ids,
-    #                     data.back_callback_data,
-    #                     session,
-    #                 )
-    #             case Keyboard.ATTACH_CATEGORIES:
-    #                 data.categories_offset = callback_data.offset
-    #                 assert data.channel_id is not None
-    #                 keyboard = await build_attach_categories_keyboard(
-    #                     data.channel_id,
-    #                     data.categories_offset,
-    #                     MAX_CATEGORY_COUNT,
-    #                     data.back_callback_data,
-    #                     session,
-    #                 )
-    #         await message.edit_reply_markup(reply_markup=keyboard)
-    #     await context.storage.set_data(key, data)
+    data = schemas.StateData(**(await state.get_data()))
+    async with context.session_maker.begin() as session:
+        match await state.get_state():
+            case Menu.TELEGRAMS:
+                data.telegrams_menu_offset = callback_data.offset
+                keyboard = await build_telegram_tg_keyboard(
+                    data.telegrams_menu_offset,
+                    MAX_TG_COUNT,
+                    session,
+                )
+            case Menu.CHANNELS:
+                data.channels_menu_offset = callback_data.offset
+                assert data.chat_id is not None
+                keyboard = await build_channel_keyboard(
+                    data.chat_id,
+                    data.thread_id,
+                    from_user.id in context.settings.bot.admin_ids,
+                    data.channels_menu_offset,
+                    MAX_YT_CHANNEL_COUNT,
+                    data.selected_categories,
+                    session,
+                )
+            case Menu.CATEGORIES:
+                data.categories_menu_offset = callback_data.offset
+                keyboard = await build_category_filter_keyboard(
+                    data.categories_menu_offset,
+                    MAX_CATEGORY_COUNT,
+                    data.categories_ids,
+                    session,
+                )
+            case Menu.ATTACH_CATEGORIES:
+                data.categories_offset = callback_data.offset
+                assert data.channel_id is not None
+                keyboard = await build_attach_categories_keyboard(
+                    data.channel_id,
+                    data.categories_menu_offset,
+                    MAX_CATEGORY_COUNT,
+                    session,
+                )
+        await message.edit_reply_markup(reply_markup=keyboard)
+        await state.set_data(data.model_dump())
 
 
 @router.callback_query(CategoryData.filter(), F.message.as_("message"))
@@ -316,10 +311,12 @@ async def category_button_pressed(
     Menu.CHANNELS,
     ChannelData.filter(),
     F.message.as_("message"),
+    F.from_user.as_("from_user"),
 )
 async def channel_checked(
     _query: CallbackQuery,
     message: Message,
+    from_user: User,
     callback_data: ChannelData,
     context: BotContext,
     state: FSMContext,
@@ -345,7 +342,7 @@ async def channel_checked(
             keyboard = await build_channel_keyboard(
                 tg.chat.original_id,
                 tg.get_thread_original_id(),
-                key.user_id in context.settings.bot.admin_ids,
+                from_user.id in context.settings.bot.admin_ids,
                 data.channels_menu_offset,
                 MAX_YT_CHANNEL_COUNT,
                 data.selected_categories,
@@ -369,7 +366,7 @@ async def yt_channels_in_tg_pressed(
 
     async with context.session_maker.begin() as session:
         keyboard = await build_category_filter_keyboard(
-            data.categories_offset,
+            data.categories_menu_offset,
             MAX_CATEGORY_COUNT,
             data.selected_categories,
             session,
@@ -379,12 +376,17 @@ async def yt_channels_in_tg_pressed(
     await state.set_data(data.model_dump())
 
 
-@router.callback_query(BackData.filter(), F.message.as_("message"))
+@router.callback_query(
+    BackData.filter(),
+    F.message.as_("message"),
+    F.from_user.as_("from_user"),
+)
 async def handle_back(
     query: CallbackQuery,
     state: FSMContext,
-    bot: Bot,
     message: Message,
+    from_user: User,
+    bot: Bot,
     context: BotContext,
 ):
     data = schemas.StateData(**(await state.get_data()))
@@ -398,12 +400,14 @@ async def handle_back(
 
     match prev_state:
         case Menu.MAIN.state:
-            is_owner = query.from_user.id in context.settings.bot.admin_ids
+            is_owner = from_user.id in context.settings.bot.admin_ids
             await show_main_keyboard(message, is_owner, bot, state)
         case Menu.TELEGRAMS.state:
             await show_telegrams_menu(query, state, message, context)
         case Menu.CATEGORIES.state:
             await show_categories_menu(query, state, message, context)
+        case Menu.ATTACH_CATEGORIES.state:
+            await show_channels_menu(query, state, message, from_user, context)
 
 
 @router.callback_query(CloseData.filter(), F.message.as_("message"))

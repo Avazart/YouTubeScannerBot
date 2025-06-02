@@ -23,7 +23,7 @@ class Menu(StatesGroup):
 
 
 class History:
-    def __init__(self, lst: list[str| None] | None = None):
+    def __init__(self, lst: list[str | None] | None = None):
         self._lst = lst or []
         logger.debug("Load %s", self)
 
@@ -62,8 +62,8 @@ class History:
     @classmethod
     def __get_pydantic_core_schema__(
         cls,
-        source_type,
-        handler: GetCoreSchemaHandler,
+        _source_type,
+        _handler: GetCoreSchemaHandler,
     ):
         return core_schema.no_info_after_validator_function(
             cls._validate,

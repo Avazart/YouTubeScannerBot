@@ -43,7 +43,7 @@ async def add_channel_command(
         try:
             channel: YouTubeChannel = await get_channel_info(args[0])
         except aiohttp.ClientError as e:
-            logger.error(f"{type(e)} {e}")
+            logger.error("%s %s", type(e), e)
             await message.reply("I can't add this channel!")
             return
 
@@ -75,8 +75,8 @@ async def add_channel_command(
             await state.set_state(Menu.CATEGORIES)
 
             data = schemas.StateData(
-                channel=schemas.ChannelMenuData(id=channel.id, offset=0),
-                category=schemas.CategoryMenuData(),
+                channel_id=channel.id,
+                categories_menu_offset=0,
             )
             await state.set_data(data.model_dump())
 
@@ -146,20 +146,20 @@ async def attach_categories_callback(
     context: BotContext,
     state: FSMContext,
 ):
-    data = schemas.StateData(**(await state.get_data()))
-    assert data.channel
-    assert data.category
+    logger.debug("attach_categories_callback")
 
+    data = schemas.StateData(**(await state.get_data()))
     async with context.session_maker.begin() as session:
-        if channel := await get_yt_channel_by_id(
-            data.channel.channel_id, session
-        ):
+        data.channel_id = callback_data.channel_id
+        if channel := await get_yt_channel_by_id(data.channel_id, session):
+            logger.debug("channel: %s", channel.title)
             keyboard = await build_attach_categories_keyboard(
-                data.channel.channel_id,
-                data.category.offset,
+                data.channel_id,
+                data.categories_menu_offset,
                 MAX_CATEGORY_COUNT,
                 session,
             )
+            await state.set_data(data.model_dump())
             text = f'Select categories for "{channel.title}"'
             await message.edit_text(text, reply_markup=keyboard)
 
@@ -174,8 +174,8 @@ async def yt_channel_category_button_pressed(
     context: BotContext,
     state: FSMContext,
 ):
-    data = schemas.StateData(**(await state.get_data()))
-    assert data.category
+    # data = schemas.StateData(**(await state.get_data()))
+    # assert data.category_id is not None
 
     async with context.session_maker.begin() as session:
         if callback_data.enabled:
@@ -192,7 +192,7 @@ async def yt_channel_category_button_pressed(
             )
         keyboard = await build_attach_categories_keyboard(
             callback_data.channel_id,
-            data.category.offset,  # !!!
+            callback_data.category_id,
             MAX_CATEGORY_COUNT,
             session,
         )
@@ -201,16 +201,14 @@ async def yt_channel_category_button_pressed(
 
 @router.callback_query(StatusData.filter(), F.message.as_("message"))
 async def status_button_pressed(
-    query: CallbackQuery,
+    _query: CallbackQuery,
     message: Message,
     callback_data: StatusData,
     context: BotContext,
     state: FSMContext,
 ):
     data = schemas.StateData(**(await state.get_data()))
-    # assert data.channel
-    # assert data.category
-    assert data.tg_obj
+    assert data.telegrams_menu_offset is not None
 
     async with context.session_maker.begin() as session:
         await set_telegram_chat_status(
@@ -219,7 +217,7 @@ async def status_button_pressed(
             session,
         )
         keyboard = await build_telegram_tg_keyboard(
-            data.tg_obj.offset,
+            data.telegrams_menu_offset,
             MAX_TG_COUNT,
             session,
         )

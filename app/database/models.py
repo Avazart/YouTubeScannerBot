@@ -8,14 +8,11 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
-    Integer,
-    String,
     UniqueConstraint,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
-    MappedAsDataclass,
     mapped_column,
 )
 
@@ -31,21 +28,15 @@ class Base(DeclarativeBase):
     __abstract__ = True
 
 
-class YouTubeChannel(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+class YouTubeChannel(Base):
     __tablename__ = "YouTubeChannels"
 
     id: Mapped[int] = mapped_column(
-        Integer,
-        init=False,
-        primary_key=True,
-        autoincrement=True,
+        init=False, primary_key=True, autoincrement=True
     )
-    original_id: Mapped[str] = mapped_column(
-        String,
-        unique=True,
-    )
-    canonical_base_url: Mapped[str] = mapped_column(String)
-    title: Mapped[str] = mapped_column(String)
+    original_id: Mapped[str] = mapped_column(unique=True)
+    canonical_base_url: Mapped[str] = mapped_column()
+    title: Mapped[str] = mapped_column()
 
     @property
     def url(self) -> str:
@@ -64,44 +55,17 @@ class YouTubeChannel(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return self.original_id == other.original_id
 
 
-class TelegramChat(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+class TelegramChat(Base):
     __tablename__ = "TelegramChats"
 
-    original_id: Mapped[int] = mapped_column(
-        BigInteger,
-        primary_key=True,
-    )
-    type: Mapped[str] = mapped_column(
-        String,
-        default=None,
-    )
-    title: Mapped[str] = mapped_column(
-        String,
-        default=None,
-        nullable=True,
-    )
-    user_name: Mapped[str] = mapped_column(
-        String,
-        default=None,
-    )
-    first_name: Mapped[str] = mapped_column(
-        String,
-        default=None,
-        nullable=True,
-    )
-    last_name: Mapped[str] = mapped_column(
-        String,
-        default=None,
-        nullable=True,
-    )
-    is_creator: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=True,
-    )
-    status: Mapped[int] = mapped_column(
-        default=int(Status.ON),
-    )
+    original_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    type: Mapped[str] = mapped_column(default=None)
+    title: Mapped[str | None] = mapped_column(default=None)
+    user_name: Mapped[str] = mapped_column(default=None)
+    first_name: Mapped[str | None] = mapped_column(default=None)
+    last_name: Mapped[str | None] = mapped_column(default=None)
+    is_creator: Mapped[bool | None] = mapped_column(default=False)
+    status: Mapped[int] = mapped_column(default=int(Status.ON))
 
     @property
     def url(self) -> str | None:
@@ -131,16 +95,11 @@ class TelegramChat(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return self.original_id == other.original_id
 
 
-class TelegramThread(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+class TelegramThread(Base):
     __tablename__ = "TelegramThreads"
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    original_id: Mapped[int] = mapped_column(
-        BigInteger,  # FIXME: unique, index = True
-    )
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    original_id: Mapped[int] = mapped_column(BigInteger)
     original_chat_id: Mapped[int] = mapped_column(
         ForeignKey(
             TelegramChat.original_id,
@@ -148,11 +107,7 @@ class TelegramThread(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
             onupdate="CASCADE",
         ),
     )
-    title: Mapped[str] = mapped_column(
-        String,
-        default=None,
-        nullable=True,
-    )
+    title: Mapped[str | None] = mapped_column(default=None)
 
     __table_args__ = (
         UniqueConstraint(
@@ -199,7 +154,7 @@ class Destination:
         return (self.chat, self.thread) == (other.chat, other.thread)
 
 
-class Forwarding(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+class Forwarding(Base):
     __tablename__ = "Forwarding"
 
     id: Mapped[int] = mapped_column(
@@ -243,7 +198,7 @@ class Forwarding(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return self.id == other.channel_id
 
 
-class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+class YouTubeVideo(Base):
     __tablename__ = "YouTubeVideos"
 
     id: Mapped[int] = mapped_column(
@@ -251,14 +206,9 @@ class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         primary_key=True,
         autoincrement=True,
     )
-    original_id: Mapped[str] = mapped_column(
-        String,
-        unique=True,
-    )
-    scan_time: Mapped[datetime] = mapped_column(
-        DateTime,
-    )
-    channel_id: Mapped[int] = mapped_column(
+    original_id: Mapped[str] = mapped_column(unique=True)
+    scan_time: Mapped[datetime] = mapped_column(DateTime)
+    channel_id: Mapped[int | None] = mapped_column(
         ForeignKey(
             YouTubeChannel.id,
             ondelete="CASCADE",
@@ -266,30 +216,13 @@ class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         ),
         default=None,
     )
-    title: Mapped[str] = mapped_column(
-        String,
-        default=None,
-        nullable=True,
+    title: Mapped[str | None] = mapped_column(default=None)
+    style: Mapped[str | None] = mapped_column(default=None)
+    time_ago: Mapped[str | None] = mapped_column(default=None)
+    creation_time: Mapped[datetime | None] = mapped_column(
+        DateTime, default=None
     )
-    style: Mapped[str] = mapped_column(
-        String,
-        default=None,
-        nullable=True,
-    )
-    time_ago: Mapped[str] = mapped_column(
-        String,
-        default=None,
-        nullable=True,
-    )
-    creation_time: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=None,
-        nullable=True,
-    )
-    live_24_7: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-    )
+    live_24_7: Mapped[bool] = mapped_column(Boolean, default=False)
     url = property(lambda self: YT_VIDEO_URL_FMT.format(id=self.original_id))
 
     def __hash__(self):
@@ -302,7 +235,7 @@ class YouTubeVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return {k: v for k, v in vars(self).items() if not k.startswith("_")}
 
 
-class Category(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+class Category(Base):
     __tablename__ = "Categories"
 
     id: Mapped[int] = mapped_column(
@@ -310,10 +243,7 @@ class Category(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         primary_key=True,
         autoincrement=True,
     )
-    name: Mapped[str] = mapped_column(
-        String,
-        unique=True,
-    )
+    name: Mapped[str] = mapped_column(unique=True)
     order: Mapped[int] = mapped_column(autoincrement=True)
 
     def __hash__(self):
@@ -323,7 +253,7 @@ class Category(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         return self.id == other.channel_id
 
 
-class YTChannelCategory(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+class YTChannelCategory(Base):
     __tablename__ = "YTChannelCategories"
 
     id: Mapped[int] = mapped_column(
@@ -364,7 +294,7 @@ class YTChannelCategory(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
         )
 
 
-class ForwardedVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
+class ForwardedVideo(Base):
     __tablename__ = "ForwardedVideos"
 
     id: Mapped[int] = mapped_column(
@@ -377,8 +307,7 @@ class ForwardedVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
             YouTubeVideo.id,
             ondelete="CASCADE",
             onupdate="CASCADE",
-        ),
-        nullable=False,
+        )
     )
     chat_original_id: Mapped[int] = mapped_column(
         ForeignKey(
@@ -386,7 +315,6 @@ class ForwardedVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),
-        nullable=False,
     )
     thread_id: Mapped[int | None] = mapped_column(
         ForeignKey(
@@ -394,7 +322,6 @@ class ForwardedVideo(MappedAsDataclass, Base, unsafe_hash=False, eq=False):
             ondelete="CASCADE",
             onupdate="CASCADE",
         ),
-        nullable=True,
     )
     __table_args__ = (
         UniqueConstraint(

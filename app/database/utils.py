@@ -377,12 +377,15 @@ async def delete_yt_channel_category(
     await session.execute(q)
 
 
+# Category
+
+
 async def get_yt_channel_categories(
     yt_channel_id: int,
     offset: int | None,
     limit: int | None,
     session: AsyncSession,
-) -> list[tuple[YTChannelCategory, bool]]:
+) -> list[tuple[Category, bool]]:
     q = select(
         Category,
         exists(
