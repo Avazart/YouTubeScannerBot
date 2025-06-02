@@ -24,9 +24,9 @@ async def try_send_message(
         except TelegramRetryAfter as e:
             logger.warning(e)
             await asyncio.sleep(e.retry_after)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(e)
             return False
-    else:
-        logger.error("Max limit of attempt count")
+
+    logger.error("Max limit of attempt count")
     return False

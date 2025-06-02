@@ -11,7 +11,13 @@ from aiogram.filters import (
     or_f,
 )
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, ChatMemberUpdated, Message
+from aiogram.fsm.state import State
+from aiogram.types import (
+    CallbackQuery,
+    ChatMemberUpdated,
+    InlineKeyboardMarkup,
+    Message,
+)
 
 from ...auxiliary_utils import get_thread_id
 from ...constants import MAX_CATEGORY_COUNT, MAX_TG_COUNT, MAX_YT_CHANNEL_COUNT
@@ -27,8 +33,8 @@ from ..bot_types import (
     BotContext,
     ChannelsMenuData,
     CloseData,
-    History,
     Menu,
+    StateHistory,
     Status,
     TelegramsMenuData,
     TgData,
@@ -71,9 +77,10 @@ async def start_command(message: Message):
     )
 
 
-@router.message(Command(commands=["menu"]))
+@router.message(Command(commands=["menu"]), F.from_user.as_("from_user"))
 async def menu_command(
     message: Message,
+    from_user: User,
     state: FSMContext,
     bot: Bot,
     context: BotContext,
@@ -100,7 +107,7 @@ async def menu_command(
                 original_chat_id=message.chat.id,
             )
             await session.merge(thread)
-    is_owner = message.from_user.id in context.settings.bot.admin_ids
+    is_owner = from_user.id in context.settings.bot.admin_ids
     await show_main_keyboard(message, is_owner, bot, state)
 
 
@@ -119,7 +126,7 @@ async def show_main_keyboard(
             await bot.delete_message(message.chat.id, data.keyboard_id)
 
     data = schemas.StateData()
-    data.history = History([Menu.MAIN.state])
+    data.history = StateHistory([Menu.MAIN])
     data.keyboard_id = m.message_id
 
     await state.set_state(Menu.MAIN)
@@ -138,7 +145,7 @@ async def show_categories_menu(
     context: BotContext,
 ):
     data = schemas.StateData(**(await state.get_data()))
-    data.history.append(Menu.CATEGORIES.state)
+    data.history.append(Menu.CATEGORIES)
 
     async with context.session_maker.begin() as session:
         keyboard = await build_category_filter_keyboard(
@@ -168,7 +175,7 @@ async def show_telegrams_menu(
     context: BotContext,
 ):
     data = schemas.StateData(**(await state.get_data()))
-    data.history.append(Menu.TELEGRAMS.state)
+    data.history.append(Menu.TELEGRAMS)
 
     async with context.session_maker.begin() as session:
         keyboard = await build_telegram_tg_keyboard(
@@ -199,18 +206,18 @@ async def show_channels_menu(
     context: BotContext,
 ):
     data = schemas.StateData(**(await state.get_data()))
-    data.history.append(Menu.CHANNELS.state)
+    data.history.append(Menu.CHANNELS)
 
     if len(data.history) < 3:
         logger.warning("History is empty!")
         return
 
-    from_state = data.history[-3]
+    from_state: State = data.history[-3]
     match from_state:
-        case Menu.MAIN.state:
+        case Menu.MAIN:
             data.chat_id = message.chat.id
             data.thread_id = message.message_thread_id
-        case Menu.TELEGRAMS.state:
+        case Menu.TELEGRAMS:
             assert data.chat_id is not None
         case _:
             logger.warning('State "%s" is wrong!', from_state)
@@ -245,6 +252,7 @@ async def navigate(
 ):
     data = schemas.StateData(**(await state.get_data()))
     async with context.session_maker.begin() as session:
+        keyboard: InlineKeyboardMarkup
         match await state.get_state():
             case Menu.TELEGRAMS:
                 data.telegrams_menu_offset = callback_data.offset
@@ -399,14 +407,14 @@ async def handle_back(
         return
 
     match prev_state:
-        case Menu.MAIN.state:
+        case Menu.MAIN:
             is_owner = from_user.id in context.settings.bot.admin_ids
             await show_main_keyboard(message, is_owner, bot, state)
-        case Menu.TELEGRAMS.state:
+        case Menu.TELEGRAMS:
             await show_telegrams_menu(query, state, message, context)
-        case Menu.CATEGORIES.state:
+        case Menu.CATEGORIES:
             await show_categories_menu(query, state, message, context)
-        case Menu.ATTACH_CATEGORIES.state:
+        case Menu.ATTACH_CATEGORIES:
             await show_channels_menu(query, state, message, from_user, context)
 
 

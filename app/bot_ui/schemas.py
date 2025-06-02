@@ -1,11 +1,11 @@
 from pydantic import BaseModel, Field
 
-from .bot_types import History
+from .bot_types import StateHistory
 
 
 class StateData(BaseModel):
     keyboard_id: int | None = None
-    history: History = Field(default_factory=History)
+    history: StateHistory = Field(default_factory=StateHistory)
 
     channels_menu_offset: int = 0
     telegrams_menu_offset: int = 0

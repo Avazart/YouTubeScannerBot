@@ -30,6 +30,7 @@ dev = [
     "anyio>=4.9.0",
     "mypy>=1.15.0",
     "pre-commit>=4.2.0",
+    "pylint>=3.3.7",
     "pytest>=8.3.5",
     "pytest-asyncio>=1.0.0",
     "ruff==0.1.5",
@@ -112,3 +113,21 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 log_cli = true
 log_cli_level = "DEBUG"
+
+[tool.pylint.messages_control]
+disable = [
+  "C0114",
+  "C0115",
+  "C0116",
+  "R0903",
+  "R0913",
+  "R0914",
+  "R0917",
+]
+[tool.pylint.master]
+ignore = [
+   ".venv",
+   "migrations",
+   "tests",
+   "scripts",
+]

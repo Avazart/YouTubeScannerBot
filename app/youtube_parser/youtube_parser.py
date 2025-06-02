@@ -66,12 +66,12 @@ def _parse_renderer(video_renderer: dict) -> dict:
         "simpleText",
         default=None,
     )
-    return dict(
-        id=video_id,
-        title=title,
-        style=style,
-        time_ago=time_ago,
-    )
+    return {
+        "id": video_id,
+        "title": title,
+        "style": style,
+        "time_ago": time_ago,
+    }
 
 
 def _has_no_video(content_0: dict) -> bool:
@@ -175,7 +175,7 @@ def parse_channel(content: str) -> dict:
     obj_content = _parse_init_data(script_with_data_els[0].text)
     tab_urls: list[str] = parse_tab_urls(obj_content)
     videos: list[dict] = _parse_object(obj_content)
-    return dict(tab_urls=tab_urls, videos=videos)
+    return {"tab_urls": tab_urls, "videos": videos}
 
 
 def parse_channel_info(content: str) -> dict:
@@ -203,11 +203,11 @@ def parse_channel_info(content: str) -> dict:
     )
     channel_id = canonical_url.rsplit("/", maxsplit=1)[-1]
     title = tabbed_header_renderer.get("title")
-    return dict(
-        title=title,
-        channel_id=channel_id,
-        canonical_base_url=canonical_base_url,
-    )
+    return {
+        "title": title,
+        "channel_id": channel_id,
+        "canonical_base_url": canonical_base_url,
+    }
 
 
 @no_type_check
@@ -216,12 +216,11 @@ def parse_time_age(text: str) -> relativedelta:
         value, measurement = int(m.group(1)), m.group(2)
         if measurement in MEASUREMENT_NAMES:
             return relativedelta(**{measurement + "s": value})
-        elif full_measurement := MEASUREMENT_SHORT_NAMES.get(measurement):
+
+        if full_measurement := MEASUREMENT_SHORT_NAMES.get(measurement):
             return relativedelta(**{full_measurement + "s": value})
-        else:
-            raise RuntimeError(
-                f'Measurement "{measurement}" is not supported!'
-            )
+
+        raise RuntimeError(f'Measurement "{measurement}" is not supported!')
     raise RuntimeError(f'Time "{text}" format is not supported!')
 
 

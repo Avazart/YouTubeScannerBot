@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Final
 
 import aiogram
 from sqlalchemy import (
@@ -17,23 +17,22 @@ from sqlalchemy.orm import (
 )
 
 from ..bot_ui.bot_types import Status
+from .mixins import ReprMixin
 
-YT_VIDEO_URL_FMT = "https://www.youtube.com/watch?v={id}"
-YT_CHANNEL_URL_FMT = "https://www.youtube.com/channel/{id}"
-YT_CHANNEL_CANONICAL_URL_FMT = "https://www.youtube.com{base_url}"
-TG_URL_FMT = "https://t.me/{user_name}"
+YT_VIDEO_URL_FMT: Final[str] = "https://www.youtube.com/watch?v={id}"
+YT_CHANNEL_URL_FMT: Final[str] = "https://www.youtube.com/channel/{id}"
+YT_CHANNEL_CANONICAL_URL_FMT: Final[str] = "https://www.youtube.com{base_url}"
+TG_URL_FMT: Final[str] = "https://t.me/{user_name}"
 
 
-class Base(DeclarativeBase):
+class Base(DeclarativeBase, ReprMixin):
     __abstract__ = True
 
 
 class YouTubeChannel(Base):
     __tablename__ = "YouTubeChannels"
 
-    id: Mapped[int] = mapped_column(
-        init=False, primary_key=True, autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     original_id: Mapped[str] = mapped_column(unique=True)
     canonical_base_url: Mapped[str] = mapped_column()
     title: Mapped[str] = mapped_column()
@@ -61,8 +60,8 @@ class TelegramChat(Base):
     original_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     type: Mapped[str] = mapped_column(default=None)
     title: Mapped[str | None] = mapped_column(default=None)
-    user_name: Mapped[str] = mapped_column(default=None)
-    first_name: Mapped[str | None] = mapped_column(default=None)
+    user_name: Mapped[str | None] = mapped_column(default=None)
+    first_name: Mapped[str] = mapped_column(default=None)
     last_name: Mapped[str | None] = mapped_column(default=None)
     is_creator: Mapped[bool | None] = mapped_column(default=False)
     status: Mapped[int] = mapped_column(default=int(Status.ON))
@@ -137,8 +136,8 @@ class Destination:
         if chart_url := self.chat.url:
             if self.thread:
                 return f"{chart_url}/{self.thread.original_id}"
-            else:
-                return chart_url
+
+            return chart_url
         return None
 
     def get_thread_id(self) -> int | None:
@@ -158,7 +157,6 @@ class Forwarding(Base):
     __tablename__ = "Forwarding"
 
     id: Mapped[int] = mapped_column(
-        init=False,
         primary_key=True,
         autoincrement=True,
     )
@@ -202,13 +200,12 @@ class YouTubeVideo(Base):
     __tablename__ = "YouTubeVideos"
 
     id: Mapped[int] = mapped_column(
-        init=False,
         primary_key=True,
         autoincrement=True,
     )
     original_id: Mapped[str] = mapped_column(unique=True)
     scan_time: Mapped[datetime] = mapped_column(DateTime)
-    channel_id: Mapped[int | None] = mapped_column(
+    channel_id: Mapped[int] = mapped_column(
         ForeignKey(
             YouTubeChannel.id,
             ondelete="CASCADE",
@@ -216,12 +213,10 @@ class YouTubeVideo(Base):
         ),
         default=None,
     )
-    title: Mapped[str | None] = mapped_column(default=None)
+    title: Mapped[str] = mapped_column()
     style: Mapped[str | None] = mapped_column(default=None)
     time_ago: Mapped[str | None] = mapped_column(default=None)
-    creation_time: Mapped[datetime | None] = mapped_column(
-        DateTime, default=None
-    )
+    creation_time: Mapped[datetime] = mapped_column(DateTime, default=None)
     live_24_7: Mapped[bool] = mapped_column(Boolean, default=False)
     url = property(lambda self: YT_VIDEO_URL_FMT.format(id=self.original_id))
 
@@ -239,7 +234,6 @@ class Category(Base):
     __tablename__ = "Categories"
 
     id: Mapped[int] = mapped_column(
-        init=False,
         primary_key=True,
         autoincrement=True,
     )
@@ -257,7 +251,6 @@ class YTChannelCategory(Base):
     __tablename__ = "YTChannelCategories"
 
     id: Mapped[int] = mapped_column(
-        init=False,
         primary_key=True,
         autoincrement=True,
     )
@@ -298,7 +291,6 @@ class ForwardedVideo(Base):
     __tablename__ = "ForwardedVideos"
 
     id: Mapped[int] = mapped_column(
-        init=False,
         primary_key=True,
         autoincrement=True,
     )

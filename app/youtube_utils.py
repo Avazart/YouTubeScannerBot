@@ -66,7 +66,7 @@ async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
     async with aiohttp.ClientSession() as session:
         headers = {"Accept-Language": "en-US,en;q=0.5"}
         session.headers.update(headers)
-        params = dict(view=0, sort="dd", flow="grid")
+        params = {"view": 0, "sort": "dd", "flow": "grid"}
 
         # video
         r = await session.get(channel.url + "/videos", params=params)
@@ -87,7 +87,7 @@ async def get_channel_data(channel: YouTubeChannel) -> YouTubeChannelData:
 
 
 async def get_channel_info(url: str) -> YouTubeChannel:
-    params = dict(view=0, sort="dd", flow="grid")
+    params = {"view": 0, "sort": "dd", "flow": "grid"}
     async with aiohttp.ClientSession() as session:
         headers = {"Accept-Language": "en-US,en;q=0.5"}
         session.headers.update(headers)

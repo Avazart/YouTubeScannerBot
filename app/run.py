@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from logging import getLogger
+from typing import Any
 
 import aiohttp
 from aiogram import Bot, Dispatcher
@@ -58,11 +59,16 @@ async def run(settings: Settings) -> None:
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
     logger.info("Creating a bot instance ...")
+    storage: Any
     bot = Bot(token=settings.bot.token.get_secret_value())
     if settings.redis.use:
         logger.info("Connecting to the redis storage ...")
-        from aiogram.fsm.storage.redis import RedisStorage
-        from redis.asyncio import from_url
+        from aiogram.fsm.storage.redis import ( # pylint: disable=import-outside-toplevel
+            RedisStorage,
+        )
+        from redis.asyncio import (  # pylint: disable=import-outside-toplevel
+            from_url,
+        )
 
         redis_client = from_url(settings.redis.url.get_secret_value())
         storage = RedisStorage(redis=redis_client)
@@ -90,7 +96,7 @@ async def run(settings: Settings) -> None:
         chat_users.router,
     )
     context = BotContext(settings, session_maker)
-    logger.info("Create scheduler ...")
+    logger.info("Creating scheduler ...")
     scheduler = AsyncIOScheduler(timezone=settings.app_tz)
     scan_trigger = CronTrigger.from_crontab(
         settings.scan_schedule, timezone=settings.app_tz
@@ -111,14 +117,9 @@ async def run(settings: Settings) -> None:
         misfire_grace_time=MISFIRE_GRACE_TIME,
     )
     scheduler.start()
-
-    logger.info("Run tasks ...")
     dp.startup.register(on_startup)
-    tasks = [
-        dp.start_polling(bot, context=context),
-        # FIXME:
-    ]
-    await asyncio.gather(*tasks)
+    await dp.start_polling(bot, context=context)
+
 
 
 async def scan(session_maker, settings: Settings) -> None:
@@ -213,7 +214,7 @@ async def scan_youtube_channels(
 ) -> list[YouTubeVideo]:
     result: list[YouTubeVideo] = []
     for i, channel in enumerate(channels, start=1):
-        logger.debug(f"{i}/{len(channels)} " + fmt_channel(channel))
+        logger.debug("%d/%d %s", i, len(channels), fmt_channel(channel))
         try:
             result.extend(await get_channel_data(channel))
         except (TimeoutError, aiohttp.ClientConnectorError) as e:
@@ -224,7 +225,7 @@ async def scan_youtube_channels(
             logger.exception(
                 "Search error %s\n%s", channel.title, channel.title
             )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception(e)
         await asyncio.sleep(request_delay)
     return result

@@ -245,7 +245,6 @@ def _tg_objects_buttons(
                 text=_fmt_tg_object(tg),
                 callback_data=data.pack(),
             )
-        # FIXME:
         tg_button = InlineKeyboardButton(
             text=f"YouTube channels "
             f"({tg.chat.original_id}/{tg.get_thread_original_id()})",
@@ -293,7 +292,7 @@ async def build_channel_keyboard(
     count: int,
     categories_ids: set,
     session: AsyncSession,
-):
+) -> InlineKeyboardMarkup:
     rows = await get_yt_channels(
         chat_id,
         thread_id,
@@ -335,7 +334,7 @@ async def build_telegram_tg_keyboard(
     offset: int,
     count: int,
     session: AsyncSession,
-):
+) -> InlineKeyboardMarkup:
     tgs = await get_tgs(offset, count + 1, session)
     prev_offset = offset - count if offset > 0 else None
     next_offset = offset + count if len(tgs) > count else None
@@ -348,7 +347,7 @@ async def build_attach_categories_keyboard(
     offset: int,
     count: int,
     session: AsyncSession,
-):
+) -> InlineKeyboardMarkup:
     category_records = await get_yt_channel_categories(
         yt_channel_id,
         offset,

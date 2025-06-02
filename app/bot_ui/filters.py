@@ -10,9 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class BotAdminFilter(BaseFilter):
-    def __init__(self):
-        super().__init__()
-
     async def __call__(
         self,
         mq: Message | CallbackQuery,
@@ -24,9 +21,6 @@ class BotAdminFilter(BaseFilter):
 
 
 class ChatAdminFilter(BaseFilter):
-    def __init__(self):
-        super().__init__()
-
     async def __call__(
         self,
         mq: Message | CallbackQuery,
@@ -46,9 +40,6 @@ class ChatAdminFilter(BaseFilter):
 
 
 class PrivateChatFilter(BaseFilter):
-    def __init__(self):
-        super().__init__()
-
     async def __call__(
         self,
         mq: Message | CallbackQuery,

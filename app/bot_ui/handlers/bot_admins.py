@@ -48,7 +48,9 @@ async def add_channel_command(
             return
 
         async with context.session_maker() as session:
-            channel.id = await get_yt_channel_id(channel.original_id, session)
+            channel_id = await get_yt_channel_id(channel.original_id, session)
+            assert channel_id is not None
+            channel.id = channel_id
             already_exists = channel.id is not None
             if already_exists:
                 await session.merge(channel)

@@ -6,6 +6,7 @@ from logging import getLogger
 from pathlib import Path
 
 import colorama
+from pydantic_core import ValidationError
 
 from .logging_utils import init_logging
 from .run import run
@@ -14,15 +15,9 @@ from .settings import Settings
 logger = getLogger(Path(__file__).parent.name)
 
 
-def main() -> int:
+async def main() -> int:
     colorama.init()
     random.seed()
-
-    if sys.platform.startswith("win"):
-        from .win_console_utils import init_win_console
-
-        init_win_console()
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -37,22 +32,26 @@ def main() -> int:
             _env_file=args.env_file,  # noqa
             _env_nested_delimiter="__",  # noqa
         )  # noqa
-        init_logging(settings.log, settings.app_tz)
-    except Exception as e:
-        print('Error occurred: %s "%s"', type(e), e, file=sys.stderr)
+    except ValidationError as e:
+        from_ = args.env_file if args.env_file else "system environment"
+        error_text = f"Error occurred while loading settings from {from_}\n{e}"
+        print(error_text, file=sys.stderr)
         return 1
 
+    init_logging(settings.log, settings.app_tz)
     try:
         logger.info("Start work ...")
-        asyncio.run(run(settings))
+        await run(settings)
         logger.info("Work finished.")
-    except KeyboardInterrupt:  # Ctrl+C
+    except (KeyboardInterrupt, asyncio.exceptions.CancelledError):  # Ctrl+C
         logger.warning("Interrupted by user.")
-    except BaseException as e:
+    except BaseException as e:  # pylint: disable=broad-exception-caught
         logger.exception('Error occurred: %s "%s"', type(e), e)
         return 1
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+sys.exit(asyncio.run(main()))

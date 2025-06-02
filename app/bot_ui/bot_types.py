@@ -1,3 +1,11 @@
+"""
+    MAIN   + -> CATEGORIES -> CHANNELS
+           |       ^
+           |       |
+           + -> TELEGRAMS
+"""
+
+
 import logging
 from collections.abc import Sequence
 from enum import IntEnum
@@ -22,12 +30,12 @@ class Menu(StatesGroup):
     ATTACH_CATEGORIES = State()
 
 
-class History:
-    def __init__(self, lst: list[str | None] | None = None):
-        self._lst = lst or []
+class StateHistory:
+    def __init__(self, lst: list[State] | None = None):
+        self._lst: list[State] = lst if lst else []
         logger.debug("Load %s", self)
 
-    def to_list(self) -> list[str]:
+    def to_list(self) -> list[State]:
         logger.debug("Dump %s", self)
         return self._lst
 
@@ -43,7 +51,7 @@ class History:
     def __repr__(self):
         return f"History({self._lst})"
 
-    def append(self, value: str | None) -> None:
+    def append(self, value: State) -> None:
         if self._lst:
             if self._lst[-1] != value:
                 self._lst.append(value)
@@ -51,10 +59,10 @@ class History:
             self._lst.append(value)
         logger.debug("History.append value=%s %s", value, self)
 
-    def back(self) -> str | None:
+    def back(self) -> State | None:
         return self._lst[-1] if self._lst else None
 
-    def pop(self) -> str | None:
+    def pop(self) -> State | None:
         value = self._lst.pop() if self._lst else None
         logger.debug("History.pop value=%s %s", value, self)
         return value
@@ -69,7 +77,7 @@ class History:
             cls._validate,
             core_schema.list_schema(core_schema.str_schema()),
             serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda v: v.to_list()
+                lambda v: [s.state for s in v._lst]
             ),
         )
 
@@ -77,19 +85,17 @@ class History:
     def _validate(cls, value):
         if isinstance(value, cls):
             return value
-        if isinstance(value, Sequence) and all(
-            isinstance(v, str) for v in value
-        ):
-            return cls(list(value))
+        if isinstance(value, Sequence) and all(isinstance(v, str) for v in value):
+            result = []
+            for raw in value:
+                if ":" in raw:
+                    *group_parts, state_name = raw.split(":")
+                    group_name = ":".join(group_parts)
+                    result.append(State(state=state_name, group_name=group_name))
+                else:
+                    result.append(State(state=raw))
+            return cls(result)
         raise TypeError("Expected list[str] or History")
-
-
-"""
-    MAIN   + -> CATEGORIES -> CHANNELS 
-           |       ^
-           |       |
-           + -> TELEGRAMS   
-"""
 
 
 class BotContext(NamedTuple):

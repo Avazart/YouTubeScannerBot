@@ -29,7 +29,10 @@ class DumpableMemoryStorage(MemoryStorage):
 
 
 async def example():
-    from aiogram import Bot, Dispatcher
+    from aiogram import (  # pylint: disable=import-outside-toplevel
+        Bot,
+        Dispatcher,
+    )
 
     bot = Bot(token="")
     with DumpableMemoryStorage("app_data/storage.pickle") as storage:
