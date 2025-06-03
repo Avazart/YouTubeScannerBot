@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from logging_utils import decorate_router_handlers
 from .bot_ui.bot_types import BotContext
 from .bot_ui.filters import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
 from .bot_ui.handlers import bot_admins, chat_admins, chat_users
@@ -118,6 +119,7 @@ async def run(settings: Settings) -> None:
     )
     scheduler.start()
     dp.startup.register(on_startup)
+    decorate_router_handlers(dp)
     await dp.start_polling(bot, context=context)
 
 
