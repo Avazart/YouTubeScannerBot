@@ -1,5 +1,5 @@
 """
-    MAIN   + -> CATEGORIES -> CHANNELS
+    MAIN   + -> CATEGORIES -> CHANNELS -> ATTACH CATEGORIES
            |       ^
            |       |
            + -> TELEGRAMS
@@ -51,6 +51,9 @@ class StateHistory:
     def __repr__(self):
         return f"History({self._lst})"
 
+    def __iter__(self):
+        return iter(self._lst)
+
     def append(self, value: State) -> None:
         if self._lst:
             if self._lst[-1] != value:
@@ -77,7 +80,7 @@ class StateHistory:
             cls._validate,
             core_schema.list_schema(core_schema.str_schema()),
             serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda v: [s.state for s in v._lst]
+                lambda v: [s.state for s in v]
             ),
         )
 
@@ -85,13 +88,17 @@ class StateHistory:
     def _validate(cls, value):
         if isinstance(value, cls):
             return value
-        if isinstance(value, Sequence) and all(isinstance(v, str) for v in value):
+        if isinstance(value, Sequence) and all(
+            isinstance(v, str) for v in value
+        ):
             result = []
             for raw in value:
                 if ":" in raw:
                     *group_parts, state_name = raw.split(":")
                     group_name = ":".join(group_parts)
-                    result.append(State(state=state_name, group_name=group_name))
+                    result.append(
+                        State(state=state_name, group_name=group_name)
+                    )
                 else:
                     result.append(State(state=raw))
             return cls(result)

@@ -63,7 +63,7 @@ async def run(settings: Settings) -> None:
     bot = Bot(token=settings.bot.token.get_secret_value())
     if settings.redis.use:
         logger.info("Connecting to the redis storage ...")
-        from aiogram.fsm.storage.redis import ( # pylint: disable=import-outside-toplevel
+        from aiogram.fsm.storage.redis import (  # pylint: disable=import-outside-toplevel
             RedisStorage,
         )
         from redis.asyncio import (  # pylint: disable=import-outside-toplevel
@@ -119,7 +119,6 @@ async def run(settings: Settings) -> None:
     scheduler.start()
     dp.startup.register(on_startup)
     await dp.start_polling(bot, context=context)
-
 
 
 async def scan(session_maker, settings: Settings) -> None:

@@ -3,7 +3,7 @@ import re
 
 from aiogram import F, Router
 from aiogram.enums import ParseMode
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 from ..bot_types import VideoLinksData
 from ..keyboards import video_links_keyboard
@@ -27,7 +27,7 @@ async def change_message_preview(
     _query: CallbackQuery,
     message: Message,
     callback_data: VideoLinksData,
-    html_text: str
+    html_text: str,
 ):
     links = html_text.split("\n")
     links.sort(key=parse_number)

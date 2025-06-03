@@ -133,6 +133,9 @@ async def show_main_keyboard(
     await state.set_data(data.model_dump())
 
 
+# CHANNELS
+
+
 @router.callback_query(
     or_f(Menu.MAIN, Menu.TELEGRAMS),
     CategoriesMenuData.filter(),
@@ -163,6 +166,9 @@ async def show_categories_menu(
     await state.set_data(data.model_dump())
 
 
+# TELEGRAMS
+
+
 @router.callback_query(
     Menu.MAIN,
     TelegramsMenuData.filter(),
@@ -190,6 +196,9 @@ async def show_telegrams_menu(
 
     await state.set_state(Menu.TELEGRAMS)
     await state.set_data(data.model_dump())
+
+
+# CHANNELS
 
 
 @router.callback_query(
@@ -237,6 +246,9 @@ async def show_channels_menu(
 
     await state.set_state(Menu.CHANNELS)
     await state.set_data(data.model_dump())
+
+
+# PAGGINATION
 
 
 @router.callback_query(
@@ -312,7 +324,9 @@ async def category_button_pressed(
             session,
         )
         await message.edit_reply_markup(reply_markup=keyboard)
+    data.history.append(Menu.ATTACH_CATEGORIES)
     await state.set_data(data.model_dump())
+    await state.set_state(Menu.ATTACH_CATEGORIES)
 
 
 @router.callback_query(

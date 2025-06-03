@@ -148,8 +148,6 @@ async def attach_categories_callback(
     context: BotContext,
     state: FSMContext,
 ):
-    logger.debug("attach_categories_callback")
-
     data = schemas.StateData(**(await state.get_data()))
     async with context.session_maker.begin() as session:
         data.channel_id = callback_data.channel_id
