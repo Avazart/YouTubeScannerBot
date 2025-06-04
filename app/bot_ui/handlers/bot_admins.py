@@ -19,7 +19,6 @@ from ...database.utils import (
     set_telegram_chat_status,
 )
 from ...youtube_utils import get_channel_info
-from .. import schemas
 from ..bot_types import BotContext, Menu, StatusData
 from ..keyboards import (
     AttachCategoryData,
@@ -199,7 +198,9 @@ async def yt_channel_category_button_pressed(
         await message.edit_reply_markup(reply_markup=keyboard)
 
 
-@router.callback_query(StatusData.filter(), F.message.as_("message"))
+@router.callback_query(
+    Menu.TELEGRAMS, StatusData.filter(), F.message.as_("message")
+)
 async def status_button_pressed(
     _query: CallbackQuery,
     message: Message,
@@ -207,8 +208,8 @@ async def status_button_pressed(
     context: BotContext,
     state: FSMContext,
 ):
-    data = schemas.StateData(**(await state.get_data()))
-    assert data.telegrams_menu_offset is not None
+    data = await state.get_data()
+    telegram_offset = data["telegram_offset"]
 
     async with context.session_maker.begin() as session:
         await set_telegram_chat_status(
@@ -217,7 +218,7 @@ async def status_button_pressed(
             session,
         )
         keyboard = await build_telegram_tg_keyboard(
-            data.telegrams_menu_offset,
+            telegram_offset,
             MAX_TG_COUNT,
             session,
         )

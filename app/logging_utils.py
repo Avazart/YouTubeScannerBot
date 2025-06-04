@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+
 class LogSettings(BaseModel):
     dir: Path
     config: Path

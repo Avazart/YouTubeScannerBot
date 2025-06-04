@@ -15,13 +15,13 @@ from aiogram.types import (
 )
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from logging_utils import decorate_router_handlers
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 
-from logging_utils import decorate_router_handlers
 from .bot_ui.bot_types import BotContext
 from .bot_ui.filters import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
 from .bot_ui.handlers import bot_admins, chat_admins, chat_users
@@ -117,7 +117,7 @@ async def run(settings: Settings) -> None:
         trigger=notify_trigger,
         misfire_grace_time=MISFIRE_GRACE_TIME,
     )
-    scheduler.start()
+    # scheduler.start()
     dp.startup.register(on_startup)
     decorate_router_handlers(dp)
     await dp.start_polling(bot, context=context)
