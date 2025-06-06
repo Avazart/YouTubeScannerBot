@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from .database.models import Destination, YouTubeChannel, YouTubeVideo
-from .database.utils import TgToYouTubeChannels
+from .database.services.forwarding_service import TgToYouTubeChannels
 from .youtube_utils import ScanData
 
 

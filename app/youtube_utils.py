@@ -8,7 +8,7 @@ from functools import partial
 import aiohttp
 from dateutil.relativedelta import relativedelta
 
-from .database.utils import YouTubeChannel, YouTubeVideo
+from .database.models import YouTubeChannel, YouTubeVideo
 from .youtube_parser.youtube_parser import (
     parse_channel,
     parse_channel_info,

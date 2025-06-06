@@ -22,15 +22,22 @@ async def paginate_attach_categories(
     state: FSMContext,
     context: BotContext,
 ):
-    data = schemas.StateData(**(await state.get_data()))
+    data = await state.get_data()
+    channel_id = data["channel_id"]
+    attach_category_offset = callback_data.offset
+
     async with context.session_maker.begin() as session:
-        data.categories_offset = callback_data.offset
-        assert data.channel_id is not None
         keyboard = await build_attach_categories_keyboard(
-            data.channel_id,
-            data.categories_menu_offset,
+            channel_id,
+            attach_category_offset,
             MAX_CATEGORY_COUNT,
             session,
         )
-        await message.edit_reply_markup(reply_markup=keyboard)
-        await state.set_data(data.model_dump())
+
+    await message.edit_reply_markup(reply_markup=keyboard)
+    await state.update_data(
+        {
+            "channel_id": channel_id,
+            "attach_category_offset": attach_category_offset,
+        }
+    )

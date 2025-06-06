@@ -1,10 +1,9 @@
 """
-    MAIN   + -> CATEGORIES -> CHANNELS -> ATTACH CATEGORIES
-           |       ^
-           |       |
-           + -> TELEGRAMS
+MAIN   + -> CATEGORIES -> CHANNELS -> ATTACH CATEGORIES
+       |       ^
+       |       |
+       + -> TELEGRAMS
 """
-
 
 import logging
 from enum import IntEnum

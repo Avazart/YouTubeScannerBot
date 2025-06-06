@@ -1,21 +1,17 @@
 import logging
+from enum import StrEnum
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auxiliary_utils import batched_evenly
 from ..constants import KEYBOARD_COLUMN_COUNT
-from ..database.models import (
-    Category,
-    Status,
-    YouTubeChannel,
-)
-from ..database.utils import (
-    Destination,
-    get_categories,
-    get_tgs,
-    get_yt_channel_categories,
-    get_yt_channels,
+from ..database.models import Category, Destination, Status, YouTubeChannel
+from ..database.services import (
+    CategoryService,
+    TelegramService,
+    YTChannelCategoryService,
+    YTChannelService,
 )
 from .bot_types import (
     AttachCategoryData,
@@ -36,12 +32,54 @@ from .bot_types import (
 logger = logging.getLogger(__name__)
 
 
-def close_button() -> InlineKeyboardButton:
-    return InlineKeyboardButton(text="Close", callback_data=CloseData().pack())
+class Emoji(StrEnum):
+    HEAVY_MULTIPLICATION_X = "✖"
+    BACK_WITH_LEFTWARDS_ARROW_ABOVE = "🔙"
+    BLACK_RIGHTWARDS_ARROW = "➡"
+    LEFTWARDS_BLACK_ARROW = "⬅"
+    HEAVY_CHECK_MARK = "✔️"
+    BLACK_DIAMOND_SUIT = "♦️"
+    PUSHPIN = "📌"
+    BULLSEYE = "⦿"
+    WHITE_HEAVY_CHECK_MARK = "✅"
+    LARGE_GREEN_SQUARE = "🟩"
 
 
-def back_button() -> InlineKeyboardButton:
-    return InlineKeyboardButton(text="Back", callback_data=BackData().pack())
+def _close_button() -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        text=f"{Emoji.HEAVY_MULTIPLICATION_X} Close",
+        callback_data=CloseData().pack(),
+    )
+
+
+def _back_button() -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        text=f"{Emoji.BACK_WITH_LEFTWARDS_ARROW_ABOVE} Back",
+        callback_data=BackData().pack(),
+    )
+
+
+def _next_button(offset: int) -> InlineKeyboardButton:
+    next_data = PageData(offset=offset)
+    return InlineKeyboardButton(
+        text=f"Next {Emoji.BLACK_RIGHTWARDS_ARROW}",
+        callback_data=next_data.pack(),
+    )
+
+
+def _prev_button(offset: int) -> InlineKeyboardButton:
+    prev_data = PageData(offset=offset)
+    return InlineKeyboardButton(
+        text=f"{Emoji.LEFTWARDS_BLACK_ARROW} Prev",
+        callback_data=prev_data.pack(),
+    )
+
+
+def _apply_button() -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        text=f"{Emoji.HEAVY_CHECK_MARK} Apply",
+        callback_data=ChannelsMenuData().pack(),
+    )
 
 
 def _nav_buttons(
@@ -50,19 +88,9 @@ def _nav_buttons(
 ) -> list[InlineKeyboardButton]:
     nav_buttons = []
     if prev_offset is not None:
-        prev_data = PageData(offset=prev_offset)
-        prev_button = InlineKeyboardButton(
-            text="⬅  Prev",
-            callback_data=prev_data.pack(),
-        )
-        nav_buttons.append(prev_button)
+        nav_buttons.append(_prev_button(prev_offset))
     if next_offset is not None:
-        next_data = PageData(offset=next_offset)
-        next_button = InlineKeyboardButton(
-            text="Next  ➡",
-            callback_data=next_data.pack(),
-        )
-        nav_buttons.append(next_button)
+        nav_buttons.append(_next_button(next_offset))
     return nav_buttons
 
 
@@ -73,19 +101,19 @@ def build_main_keyboard(is_owner: bool) -> InlineKeyboardMarkup:
     buttons = [
         [
             InlineKeyboardButton(
-                text="YouTube channels",
+                text=f"{Emoji.BLACK_DIAMOND_SUIT} YouTube channels",
                 callback_data=CategoriesMenuData().pack(),
             )
         ]
     ]
     if is_owner:
         button = InlineKeyboardButton(
-            text="Telegram chats and threads",
+            text=f"{Emoji.BLACK_DIAMOND_SUIT} Telegram chats and threads",
             callback_data=TelegramsMenuData().pack(),
         )
         buttons.append([button])
 
-    buttons.append([close_button()])
+    buttons.append([_close_button()])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -98,7 +126,12 @@ def _channel_buttons(
 ) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for channel, enabled in rows:
-        text = f"{'✅' if enabled else ' '} {channel.title}"
+        emoji = (
+            Emoji.WHITE_HEAVY_CHECK_MARK
+            if enabled
+            else Emoji.LARGE_GREEN_SQUARE
+        )
+        text = f"{emoji} {channel.title}"
         assert channel.id is not None
         data = ChannelData(id=channel.id, enabled=enabled)
         check_button = InlineKeyboardButton(
@@ -113,7 +146,7 @@ def _channel_buttons(
         if is_owner:
             data2 = AttachCategoryData(channel_id=channel.id)
             categories_button = InlineKeyboardButton(
-                text="Categories",
+                text=f"{Emoji.BLACK_DIAMOND_SUIT} Categories",
                 callback_data=data2.pack(),
             )
             buttons[-1].append(categories_button)
@@ -129,7 +162,7 @@ def _channel_keyboard(
     buttons = _channel_buttons(rows, is_owner)
     if nav_buttons := _nav_buttons(prev_offset, next_offset):
         buttons.append(nav_buttons)
-    buttons.append([back_button(), close_button()])
+    buttons.append([_back_button(), _close_button()])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -145,7 +178,12 @@ def _category_buttons(
         row_buttons = []
         for category in row:
             checked = category.id in selected
-            text = f"{'✅' if checked else '🟩'} {category.name}"
+            emoji = (
+                Emoji.WHITE_HEAVY_CHECK_MARK
+                if checked
+                else Emoji.LARGE_GREEN_SQUARE
+            )
+            text = f"{emoji} {category.name}"
             data = CategoryData(id=category.id)
             category_button = InlineKeyboardButton(
                 text=text,
@@ -158,44 +196,53 @@ def _category_buttons(
 
 def _categories_keyboard(
     categories: list[Category],
-    selected_categories: set[int],
+    selected: set[int],
     prev_offset: int | None,
     next_offset: int | None,
 ) -> InlineKeyboardMarkup:
-    buttons = _category_buttons(categories, selected_categories)
+    buttons = _category_buttons(categories, selected)
     if nav_buttons := _nav_buttons(prev_offset, next_offset):
         buttons.append(nav_buttons)
 
-    apply_button = InlineKeyboardButton(
-        text="Apply",
-        callback_data=ChannelsMenuData().pack(),
-    )
-    buttons.append([back_button(), close_button(), apply_button])
+    buttons.append([_back_button(), _close_button(), _apply_button()])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 # ATTACH CATEGORIES
 
 
+def _category_button(
+    category: Category,
+    channel_id: int,
+    enabled: bool,
+    attach: bool = False,
+) -> InlineKeyboardButton:
+    if attach:
+        emoji = Emoji.PUSHPIN if enabled else Emoji.BULLSEYE
+    else:
+        emoji = (
+            Emoji.WHITE_HEAVY_CHECK_MARK
+            if enabled
+            else Emoji.LARGE_GREEN_SQUARE
+        )
+    text = f"{emoji} {category.name}"
+    data = YTChannelCategoryData(
+        category_id=category.id, channel_id=channel_id, enabled=enabled
+    )
+    return InlineKeyboardButton(text=text, callback_data=data.pack())
+
+
 def _attach_categories_buttons(
     category_records: list[tuple[Category, bool]],
-    yt_channel_id: int,
+    channel_id: int,
 ) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for row in batched_evenly(category_records, KEYBOARD_COLUMN_COUNT):
         row_buttons = []
-        for category, enable in row:
-            text = f"{'✅' if enable else ' '} {category.name}"
-            data = YTChannelCategoryData(
-                category_id=category.id,
-                channel_id=yt_channel_id,
-                enabled=enable,
+        for category, enabled in row:
+            row_buttons.append(
+                _category_button(category, channel_id, enabled, attach=True)
             )
-            category_button = InlineKeyboardButton(
-                text=text,
-                callback_data=data.pack(),
-            )
-            row_buttons.append(category_button)
         buttons.append(row_buttons)
     return buttons
 
@@ -210,7 +257,7 @@ def _attach_categories_keyboard(
     if nav_buttons := _nav_buttons(prev_offset, next_offset):
         buttons.append(nav_buttons)
 
-    buttons.append([back_button(), close_button()])
+    buttons.append([_back_button(), _close_button()])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -226,12 +273,24 @@ def _fmt_tg_object(tg: Destination) -> str:
     return f"{title}{thread}"
 
 
+def _status_button(tg: Destination) -> InlineKeyboardButton:
+    status_data = StatusData(
+        chat_id=tg.chat.original_id,
+        thread_id=tg.get_thread_original_id(),
+        status=Status(tg.chat.status),
+    )
+    return InlineKeyboardButton(
+        text=Status(tg.chat.status).text(),
+        callback_data=status_data.pack(),
+    )
+
+
 def _tg_objects_buttons(
     tgs: list[Destination],
 ) -> list[list[InlineKeyboardButton]]:
     buttons = []
     for tg in tgs:
-        data = TgData(
+        tg_data = TgData(
             chat_id=tg.chat.original_id,
             thread_id=tg.get_thread_original_id(),
         )
@@ -243,35 +302,28 @@ def _tg_objects_buttons(
         else:
             link_button = InlineKeyboardButton(
                 text=_fmt_tg_object(tg),
-                callback_data=data.pack(),
+                callback_data=tg_data.pack(),
             )
         tg_button = InlineKeyboardButton(
-            text=f"YouTube channels "
+            text=f"{Emoji.BLACK_DIAMOND_SUIT} YouTube channels "
             f"({tg.chat.original_id}/{tg.get_thread_original_id()})",
-            callback_data=data.pack(),
+            callback_data=tg_data.pack(),
         )
-        data2 = StatusData(
-            chat_id=tg.chat.original_id,
-            thread_id=tg.get_thread_original_id(),
-            status=Status(tg.chat.status),
-        )
-        status_button = InlineKeyboardButton(
-            text=Status(tg.chat.status).text(),
-            callback_data=data2.pack(),
-        )
-        buttons.append([link_button, status_button, tg_button])
+        buttons.append([link_button, _status_button(tg), tg_button])
     return buttons
 
 
 def _tgs_keyboard(
-    tgs: list[Destination], prev_offset: int | None, next_offset: int | None
+    tgs: list[Destination],
+    prev_offset: int | None,
+    next_offset: int | None,
 ) -> InlineKeyboardMarkup:
     buttons = _tg_objects_buttons(tgs)
     nav_button = _nav_buttons(prev_offset, next_offset)
     if nav_button:
         buttons.append(nav_button)
 
-    buttons.append([back_button(), close_button()])
+    buttons.append([_back_button(), _close_button()])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -293,13 +345,9 @@ async def build_channel_keyboard(
     categories_ids: set,
     session: AsyncSession,
 ) -> InlineKeyboardMarkup:
-    rows = await get_yt_channels(
-        chat_id,
-        thread_id,
-        categories_ids,
-        offset,
-        count + 1,
-        session,
+    service = YTChannelService(session)
+    rows = await service.get_all(
+        chat_id, thread_id, categories_ids, offset, count + 1
     )
     prev_offset = offset - count if offset > 0 else None
     next_offset = offset + count if len(rows) > count else None
@@ -318,7 +366,8 @@ async def build_category_filter_keyboard(
     selected_categories: set[int],
     session: AsyncSession,
 ) -> InlineKeyboardMarkup:
-    categories = await get_categories(offset, count + 1, session)
+    service = CategoryService(session)
+    categories = await service.get_all(offset, count + 1)
     prev_offset = offset - count if offset > 0 else None
     next_offset = offset + count if len(categories) > count else None
     keyboard = _categories_keyboard(
@@ -335,7 +384,8 @@ async def build_telegram_tg_keyboard(
     count: int,
     session: AsyncSession,
 ) -> InlineKeyboardMarkup:
-    tgs = await get_tgs(offset, count + 1, session)
+    service = TelegramService(session)
+    tgs = await service.get_all(offset, count + 1)
     prev_offset = offset - count if offset > 0 else None
     next_offset = offset + count if len(tgs) > count else None
     keyboard = _tgs_keyboard(tgs[:count], prev_offset, next_offset)
@@ -343,22 +393,18 @@ async def build_telegram_tg_keyboard(
 
 
 async def build_attach_categories_keyboard(
-    yt_channel_id: int,
+    channel_id: int,
     offset: int,
     count: int,
     session: AsyncSession,
 ) -> InlineKeyboardMarkup:
-    category_records = await get_yt_channel_categories(
-        yt_channel_id,
-        offset,
-        count + 1,
-        session,
-    )
+    service = YTChannelCategoryService(session)
+    category_records = await service.get_all(channel_id, offset, count + 1)
     prev_offset = offset - count if offset > 0 else None
     next_offset = offset + count if len(category_records) > count else None
     keyboard = _attach_categories_keyboard(
         category_records[:count],
-        yt_channel_id,
+        channel_id,
         prev_offset,
         next_offset,
     )

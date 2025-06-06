@@ -2,18 +2,14 @@ import logging
 
 from aiogram import F, Router
 from aiogram.client.bot import Bot, User
-from aiogram.filters import (
-    JOIN_TRANSITION,
-    ChatMemberUpdatedFilter,
-    Command,
-)
+from aiogram.filters import JOIN_TRANSITION, ChatMemberUpdatedFilter, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Chat, ChatMemberUpdated, Message
 
 from ....auxiliary_utils import get_thread_id
 from ....constants import BOT_DESCRIPTION
 from ....database.models import TelegramChat, TelegramThread
-from ....database.utils import get_destinations
+from ....database.services import TelegramService
 from ...bot_types import (
     BackData,
     BotContext,
@@ -57,11 +53,8 @@ async def menu_command(
 ):
     async with context.session_maker.begin() as session:
         thread_original_id = get_thread_id(message)
-        if tg := await get_destinations(
-            message.chat.id,
-            thread_original_id,
-            session,
-        ):
+        tg_service = TelegramService(session)
+        if tg := await tg_service.get(message.chat.id, thread_original_id):
             chat = tg.chat
             if chat.status == Status.BAN:
                 return
@@ -91,30 +84,35 @@ async def handle_back(
     query: CallbackQuery,
     state: FSMContext,
     message: Message,
-    from_user: User,
     chat: Chat,
+    from_user: User,
     bot: Bot,
     context: BotContext,
 ):
     history = StateHistory.from_list(await state.get_value("history"))
-    _current_state = history.pop()
-    prev_state = history.back()
+    current_state = history.pop()
     await state.update_data({"history": history.as_list()})
+    logger.debug("current_state: %s", current_state)
+    if current_state == Menu.ATTACH_CATEGORIES:
+        await show_channels_menu(query, state, message, from_user, context)
+        return
 
+    prev_state = history.back()
+    logger.debug("prev_state: %s", prev_state)
     if not prev_state:
         logger.warning("Wrong history!")
         return
 
     match prev_state:
         case Menu.MAIN:
-            is_owner = from_user.id in context.settings.bot.admin_ids
-            await show_main_keyboard(message, is_owner, bot, state)
+            is_bot_admin = from_user.id in context.settings.bot.admin_ids
+            await show_main_keyboard(message, is_bot_admin, bot, state)
         case Menu.TELEGRAMS:
-            await show_telegrams_menu(query, state, message, chat, context)
+            await show_telegrams_menu(query, state, message, context)
         case Menu.CATEGORIES:
             await show_categories_menu(query, state, message, chat, context)
-        case Menu.ATTACH_CATEGORIES:
-            await show_channels_menu(query, state, message, from_user, context)
+        case _:
+            logger.warning("Not handled state")
 
 
 @router.callback_query(CloseData.filter(), F.message.as_("message"))

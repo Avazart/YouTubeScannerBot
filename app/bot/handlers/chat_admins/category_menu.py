@@ -28,9 +28,16 @@ async def show_categories_menu(
     context: BotContext,
 ):
     data = await state.get_data()
-    history = StateHistory.from_list(data["history"])
-    category_offset = data["category_offset"]
-    category_selection = data["category_selection"]
+    history = StateHistory.from_list(data.get("history", []))
+    category_offset = data.get("category_offset", 0)
+    category_selection = data.get("category_selection", [])
+
+    if await state.get_state() == Menu.MAIN:
+        chat_id = chat.id
+        thread_id = message.message_thread_id
+    else:
+        chat_id = data["chat_id"]
+        thread_id = data["thread_id"]
 
     async with context.session_maker.begin() as session:
         keyboard = await build_category_filter_keyboard(
@@ -43,8 +50,17 @@ async def show_categories_menu(
             "Select categories for filter youtube channels:",
             reply_markup=keyboard,
         )
+
     history.append(Menu.CATEGORIES)
-    await state.update_data({"history": history.as_list()})
+    await state.update_data(
+        {
+            "history": history.as_list(),
+            "category_offset": category_offset,
+            "category_selection": category_selection,
+            "chat_id": chat_id,
+            "thread_id": thread_id,
+        }
+    )
     await state.set_state(Menu.CATEGORIES)
 
 
@@ -59,8 +75,8 @@ async def category_button_pressed(
     context: BotContext,
 ):
     data = await state.get_data()
-    category_offset = data["category_offset"]
-    category_selection = data["category_selection"]
+    category_offset = data.get("category_offset", 0)
+    category_selection = data.get("category_selection", [])
 
     if callback_data.id in category_selection:
         category_selection.remove(callback_data.id)
@@ -76,7 +92,12 @@ async def category_button_pressed(
         )
         await message.edit_reply_markup(reply_markup=keyboard)
 
-    await state.update_data({"category_selection": category_selection})
+    await state.update_data(
+        {
+            "category_offset": category_offset,
+            "category_selection": category_selection,
+        }
+    )
 
 
 @router.callback_query(
@@ -91,7 +112,7 @@ async def paginate_categories(
 ):
     data = await state.get_data()
     category_offset = callback_data.offset
-    category_selection = data["category_selection"]
+    category_selection = data.get("category_selection", [])
 
     async with context.session_maker.begin() as session:
         keyboard = await build_category_filter_keyboard(
@@ -102,4 +123,9 @@ async def paginate_categories(
         )
         await message.edit_reply_markup(reply_markup=keyboard)
 
-    await state.update_data({"category_offset": category_offset})
+    await state.update_data(
+        {
+            "category_offset": category_offset,
+            "category_selection": category_selection,
+        }
+    )

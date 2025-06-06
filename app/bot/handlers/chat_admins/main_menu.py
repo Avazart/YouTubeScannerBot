@@ -37,13 +37,11 @@ async def show_main_keyboard(
         {
             "keyboard_id": keyboard_id,
             "history": history.as_list(),
-            "category_offset": 0,
             "channel_offset": 0,
-            "attach_category_offset": 0,
             "telegram_offset": 0,
+            "category_offset": 0,
             "category_selection": [],
+            "attach_category_offset": 0,
             "attach_category_selection": [],
-            "chat_id": None,
-            "thread_id": None,
         }
     )

@@ -58,9 +58,9 @@ async def yt_channels_in_tg_pressed(
     context: BotContext,
 ):
     data = await state.get_data()
-    history = StateHistory.from_list(data["history"])
-    category_offset = data["category_offset"]
-    category_selection = data["category_selection"]
+    history = StateHistory.from_list(data.get("history", []))
+    category_offset = data.get("category_offset", 0)
+    category_selection = data.get("category_selection", 0)
 
     chat_id = callback_data.chat_id
     thread_id = callback_data.thread_id
@@ -74,6 +74,7 @@ async def yt_channels_in_tg_pressed(
         )
         await message.edit_text("YouTube channels:", reply_markup=keyboard)
 
+    history.append(Menu.CATEGORIES)
     await state.update_data(
         {
             "history": history.as_list(),
@@ -81,8 +82,7 @@ async def yt_channels_in_tg_pressed(
             "thread_id": thread_id,
         }
     )
-    history.append(Menu.CATEGORIES)
-    await state.set_data(Menu.CATEGORIES)
+    await state.set_state(Menu.CATEGORIES)
 
 
 @router.callback_query(

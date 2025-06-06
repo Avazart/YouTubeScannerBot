@@ -1,4 +1,4 @@
-from aiogram import F, Router
+from aiogram import Router
 
 from .attach_category_menu import router as attach_categories_router
 from .category_menu import router as category_menu_router

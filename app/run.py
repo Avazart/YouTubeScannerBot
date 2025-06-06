@@ -15,29 +15,33 @@ from aiogram.types import (
 )
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from logging_utils import decorate_router_handlers
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 
-from .bot_ui.bot_types import BotContext
-from .bot_ui.filters import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
-from .bot_ui.handlers import bot_admins, chat_admins, chat_users
-from .bot_ui.keyboards import video_links_keyboard
-from .command_menu import GROUP_COMMANDS, PRIVATE_COMMANDS
-from .constants import LAST_DAYS_IN_DB, LAST_DAYS_ON_PAGE, MISFIRE_GRACE_TIME
+from .bot.bot_types import BotContext
+from .bot.filters import BotAdminFilter, ChatAdminFilter, PrivateChatFilter
+from .bot.handlers import bot_admins, chat_admins, chat_users
+from .bot.keyboards import video_links_keyboard
+from .constants import (
+    GROUP_COMMANDS,
+    LAST_DAYS_IN_DB,
+    LAST_DAYS_ON_PAGE,
+    MISFIRE_GRACE_TIME,
+    PRIVATE_COMMANDS,
+)
 from .database.models import Destination, YouTubeChannel, YouTubeVideo
-from .database.utils import (
-    add_forwarded_videos,
-    get_active_yt_channels,
-    get_forwarding_data,
-    get_not_forwarded_videos,
-    insert_videos,
+from .database.services import (
+    ForwardedVideoService,
+    ForwardingService,
+    YTChannelService,
+    YTVideoService,
 )
 from .dumpable_memory_storage import DumpableMemoryStorage
 from .format_utils import fmt_channel, make_message_text, make_video_line
+from .logging_utils import decorate_router_handlers
 from .send_worker import try_send_message
 from .settings import Settings
 from .youtube_parser import search
@@ -120,12 +124,17 @@ async def run(settings: Settings) -> None:
     # scheduler.start()
     dp.startup.register(on_startup)
     decorate_router_handlers(dp)
-    await dp.start_polling(bot, context=context)
+    try:
+        await dp.start_polling(bot, context=context)
+    finally:
+        if isinstance(storage, DumpableMemoryStorage):
+            storage.dump()
 
 
 async def scan(session_maker, settings: Settings) -> None:
     async with session_maker() as session:
-        channels = await get_active_yt_channels(session)
+        channel_service = YTChannelService(session)
+        channels = await channel_service.get_all_active()
         logger.info("ChannelMenuData count %d", len(channels))
 
         logger.info("Scan youtube channels ...")
@@ -135,14 +144,19 @@ async def scan(session_maker, settings: Settings) -> None:
         logger.info("Recent videos: %d", len(recent_videos))
         # logger.debug(pformat(recent_videos))
         if recent_videos:
-            await insert_videos(session, recent_videos)
+            video_service = YTVideoService(session)
+            await video_service.insert(recent_videos)
+            await session.commit()
         logger.info("Scanning complete.")
 
 
 async def notify(session_maker, settings: Settings, bot: Bot) -> None:
+    logger.info("Notification ...")
+
     async with session_maker() as session:
-        logger.info("Notification ...")
-        dest_with_channels, _ = await get_forwarding_data(session)
+        forwarding_service = ForwardingService(session)
+        forwarded_video_service = ForwardedVideoService(session)
+        dest_with_channels, _ = await forwarding_service.get_data()
         channel_titles = {}
         for channels in dest_with_channels.values():
             for channel in channels:
@@ -150,8 +164,9 @@ async def notify(session_maker, settings: Settings, bot: Bot) -> None:
 
         for dest, channels in dest_with_channels.items():
             limit = 2 if dest.chat.type == ChatType.CHANNEL else 5
-            videos = await get_not_forwarded_videos(
-                session, dest, channels, last_days=LAST_DAYS_IN_DB, limit=limit
+
+            videos = await forwarded_video_service.get_not_forwarded(
+                dest, channels, last_days=LAST_DAYS_IN_DB, limit=limit
             )
             logger.info(
                 "%s%s videos: %d",
@@ -205,7 +220,8 @@ async def send_videos(
             dispatched_videos = videos
 
     if dispatched_videos:
-        await add_forwarded_videos(session, dest, dispatched_videos)
+        forwarded_video_service = ForwardedVideoService(session)
+        await forwarded_video_service.add_forwarded(dest, dispatched_videos)
     await asyncio.sleep(settings.message_delay)
 
 

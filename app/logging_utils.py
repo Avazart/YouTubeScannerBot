@@ -40,8 +40,8 @@ def _get_function_info(function: Callable) -> str | None:
         file = function.__globals__.get("__file__")
         line = function.__code__.co_firstlineno
         return f'{name} File "{file}", line {line}'
-    else:
-        return None
+
+    return None
 
 
 def log_async_function(function: Callable):

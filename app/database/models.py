@@ -16,7 +16,7 @@ from sqlalchemy.orm import (
     mapped_column,
 )
 
-from ..bot_ui.bot_types import Status
+from ..bot.bot_types import Status
 from .mixins import ReprMixin
 
 YT_VIDEO_URL_FMT: Final[str] = "https://www.youtube.com/watch?v={id}"
