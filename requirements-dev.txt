@@ -1,5 +1,5 @@
 pre-commit
-ruff==0.1.5
+ruff
 mypy
 types-beautifulsoup4
 types-python-dateutil
@@ -8,9 +8,4 @@ types-redis
 types-tzlocal
 
 pytest
-anyio
 pytest-asyncio
-pytest-tornasync
-pytest-trio
-pytest-twisted
-twisted

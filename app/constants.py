@@ -19,8 +19,7 @@ BOT_DESCRIPTION: Final[str] = (
     "I periodically scan YouTube channels "
     "for new videos and send you links to them in Telegram\n\n"
     "You can control me by sending these commands:\n\n"
-    "/menu - open the menu\n\n"
-    "/add_channel <url> - add youtube channel"
+    "/menu - open the menu"
 )
 
 

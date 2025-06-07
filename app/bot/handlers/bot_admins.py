@@ -234,6 +234,10 @@ async def status_button_pressed(
 
 
 @router.message(Command(commands=["scan"]))
-async def scan_command(_message: Message, bot: Bot, context: BotContext):
+async def scan_command(_message: Message, context: BotContext):
     await scan(context.session_maker, context.settings)
+
+
+@router.message(Command(commands=["notify"]))
+async def notify_command(_message: Message, bot: Bot, context: BotContext):
     await notify(context.session_maker, context.settings, bot)
