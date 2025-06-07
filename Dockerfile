@@ -1,9 +1,9 @@
 FROM python:3.11
 
+COPY --from=ghcr.io/astral-sh/uv:0.7.3 /uv /uvx /bin/
+
 WORKDIR /youtube_scanner
 
-COPY ./requirements.txt /youtube_scanner
-
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
-
 COPY . /youtube_scanner
+
+RUN uv sync --locked --no-dev

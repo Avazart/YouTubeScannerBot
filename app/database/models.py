@@ -21,9 +21,9 @@ from ..bot.bot_types import Status
 from .mixins import ReprMixin
 
 YT_VIDEO_URL_FMT: Final[str] = "https://www.youtube.com/watch?v={id}"
-YT_VIDEO_PREVIEW_URL_FMT: Final[str] = (
-    "https://img.youtube.com/vi/{id}/default.jpg"
-)
+YT_VIDEO_PREVIEW_URL_FMT: Final[
+    str
+] = "https://img.youtube.com/vi/{id}/default.jpg"
 YT_CHANNEL_URL_FMT: Final[str] = "https://www.youtube.com/channel/{id}"
 YT_CHANNEL_CANONICAL_URL_FMT: Final[str] = "https://www.youtube.com{base_url}"
 TG_URL_FMT: Final[str] = "https://t.me/{user_name}"

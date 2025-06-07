@@ -26,7 +26,9 @@ class Settings(BaseSettings):
     log: LogSettings
     bot: BotSettings
     redis: RedisSettings
-    storage_file: str
+
+    storage_file: str | None = None
+
     database_url: str
 
     without_sending: bool = False

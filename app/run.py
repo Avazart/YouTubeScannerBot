@@ -47,6 +47,7 @@ async def create_storage(settings: Settings) -> BaseStorage:
         storage = RedisStorage(redis=redis_client)
     else:
         logger.info("Loading the file storage ...")
+        assert settings.storage_file
         storage = DumpableMemoryStorage(settings.storage_file)
         storage.load()
     return storage

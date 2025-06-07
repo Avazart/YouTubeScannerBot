@@ -2,21 +2,32 @@ services:
     app:
         container_name: youtube_scanner_app
         image: youtube_scanner_app
-        command: python3 -m app
+        command: uv run python -m app
         volumes:
-            - ${APP_DATA}/logs:${LOG_DIR}
+            - ${APP_DATA}/logs:${LOG__DIR}
         environment:
-            MODE: $MODE
+            LOG__DIR: $LOG__DIR
+            LOG__CONFIG: $LOG__CONFIG
+
+            BOT__TOKEN: $BOT__TOKEN
+            BOT__ADMIN_IDS: $BOT__ADMIN_IDS
+
+            REDIS__USE: $REDIS__USE
+            REDIS__URL: $REDIS__URL
+            REDIS__QUEUE: $REDIS__QUEUE
+
+            STORAGE_FILE: $STORAGE_FILE
+
+            SCAN_SCHEDULE: $SCAN_SCHEDULE
+            NOTIFY_SCHEDULE: $NOTIFY_SCHEDULE
+
             WITHOUT_SENDING: $WITHOUT_SENDING
             PARSE_TAGS: $PARSE_TAGS
-            LOG_DIR: $LOG_DIR
+
             DATABASE_URL: $DATABASE_URL
-            BOT_TOKEN: $BOT_TOKEN
-            BOT_ADMIN_IDS: $BOT_ADMIN_IDS
-            CRON_SCHEDULE: $CRON_SCHEDULE
             SEND_DELAY: $SEND_DELAY
-            REDIS_URL: $REDIS_URL
-            REDIS_QUEUE: $REDIS_QUEUE
+
+            APP_TZ: $APP_TZ
             TZ: $TZ
         depends_on:
             database:
