@@ -2,7 +2,8 @@ services:
     app:
         container_name: youtube_scanner_app
         image: youtube_scanner_app
-        command: uv run python -m app
+        command: uv run --locked --no-dev -- python -m app
+
         volumes:
             - ${APP_DATA}/logs:${LOG__DIR}
         environment:
