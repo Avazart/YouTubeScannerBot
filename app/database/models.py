@@ -14,12 +14,16 @@ from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
+    relationship,
 )
 
 from ..bot.bot_types import Status
 from .mixins import ReprMixin
 
 YT_VIDEO_URL_FMT: Final[str] = "https://www.youtube.com/watch?v={id}"
+YT_VIDEO_PREVIEW_URL_FMT: Final[str] = (
+    "https://img.youtube.com/vi/{id}/default.jpg"
+)
 YT_CHANNEL_URL_FMT: Final[str] = "https://www.youtube.com/channel/{id}"
 YT_CHANNEL_CANONICAL_URL_FMT: Final[str] = "https://www.youtube.com{base_url}"
 TG_URL_FMT: Final[str] = "https://t.me/{user_name}"
@@ -36,6 +40,10 @@ class YouTubeChannel(Base):
     original_id: Mapped[str] = mapped_column(unique=True)
     canonical_base_url: Mapped[str] = mapped_column()
     title: Mapped[str] = mapped_column()
+
+    videos: Mapped[list["YouTubeVideo"]] = relationship(
+        back_populates="channel", cascade="all, delete-orphan"
+    )
 
     @property
     def url(self) -> str:
@@ -220,6 +228,8 @@ class YouTubeVideo(Base):
     live_24_7: Mapped[bool] = mapped_column(Boolean, default=False)
     url = property(lambda self: YT_VIDEO_URL_FMT.format(id=self.original_id))
 
+    channel: Mapped[YouTubeChannel] = relationship(back_populates="videos")
+
     def __hash__(self):
         return hash(self.original_id)
 
@@ -228,6 +238,10 @@ class YouTubeVideo(Base):
 
     def as_dict(self) -> dict[str, Any]:
         return {k: v for k, v in vars(self).items() if not k.startswith("_")}
+
+    @property
+    def preview_url(self) -> str:
+        return YT_VIDEO_PREVIEW_URL_FMT.format(id=self.original_id)
 
 
 class Category(Base):

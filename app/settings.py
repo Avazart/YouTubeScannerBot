@@ -40,3 +40,5 @@ class Settings(BaseSettings):
     attempt_count: int = 3
     app_tz: TimeZone
     parse_tags: bool = False
+
+    flags: frozenset[str] = frozenset()

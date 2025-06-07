@@ -1,7 +1,7 @@
 import logging
 
 import aiohttp
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -14,6 +14,7 @@ from ...database.services import (
     YTChannelCategoryService,
     YTChannelService,
 )
+from ...jobs import notify, scan
 from ...youtube_utils import get_channel_info
 from ..bot_types import BotContext, Menu, StatusData
 from ..keyboards import (
@@ -230,3 +231,9 @@ async def status_button_pressed(
             session,
         )
         await message.edit_reply_markup(reply_markup=keyboard)
+
+
+@router.message(Command(commands=["scan"]))
+async def scan_command(_message: Message, bot: Bot, context: BotContext):
+    await scan(context.session_maker, context.settings)
+    await notify(context.session_maker, context.settings, bot)
